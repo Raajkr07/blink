@@ -24,21 +24,47 @@ public class EmailService {
 
     @Async
     public void sendOtpEmail(String to, String otp, String appName, String verifyUrl) {
+        if (to == null || to.trim().isEmpty()) {
+            log.error("Email address is null or empty");
+            return;
+        }
+        
+        if (otp == null || otp.trim().isEmpty()) {
+            log.error("OTP is null or empty");
+            return;
+        }
+        
         try {
+            if (mailSender == null) {
+                log.error("JavaMailSender is not configured. Cannot send email to: {}", to);
+                return;
+            }
+            
+            if (templateEngine == null) {
+                log.error("SpringTemplateEngine is not configured. Cannot send email to: {}", to);
+                return;
+            }
+            
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-            helper.setTo(to);
+            helper.setTo(to.trim().toLowerCase());
             helper.setSubject("Verify Your " + appName + " Account - Your OTP Code");
 
             Context context = new Context();
             context.setVariable("otp", otp);
             context.setVariable("appName", appName);
             context.setVariable("verifyUrl", verifyUrl);
-            String htmlContent = templateEngine.process("otp-mail", context);
+            
+            String htmlContent;
+            try {
+                htmlContent = templateEngine.process("otp-mail", context);
+            } catch (Exception e) {
+                log.error("Failed to process email template 'otp-mail'. Using fallback text. Error: {}", e.getMessage());
+                htmlContent = "<html><body><h2>Your OTP Code</h2><p>Your OTP code is: <strong>" + otp + "</strong></p><p>This code will expire in 10 minutes.</p></body></html>";
+            }
 
             helper.setText(htmlContent, true);
             mailSender.send(mimeMessage);
-            log.info("OTP email sent successfully to: {}", to);
         } catch (MessagingException | MailException e) {
             log.error("Failed to send OTP email to {}: {}", to, e.getMessage(), e);
         } catch (Exception e) {
@@ -57,11 +83,10 @@ public class EmailService {
             Context context = new Context();
             context.setVariable("preview", preview);
             context.setVariable("appName", appName);
-            String htmlContent = templateEngine.process("message-mail", context);
+            String htmlContent = templateEngine.process("message-email", context);
 
             helper.setText(htmlContent, true);
             mailSender.send(mimeMessage);
-            log.info("New message email sent to: {}", to);
         } catch (MessagingException | MailException e) {
             log.error("Failed to send new message email to {}: {}", to, e.getMessage(), e);
         } catch (Exception e) {
