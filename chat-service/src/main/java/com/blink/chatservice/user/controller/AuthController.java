@@ -32,7 +32,6 @@ public class AuthController {
 
         log.info("OTP requested for: {}", maskIdentifier(identifier));
 
-        // Best effort notification
         try {
             boolean sent = notificationServiceImpl.sendOtp(identifier, otp, "Blink", "http://localhost:5143");
             if (!sent) {
@@ -52,21 +51,10 @@ public class AuthController {
         return ResponseEntity.ok(new VerifyOtpResponse(valid ? "OTP verified successfully" : "Invalid OTP", valid));
     }
 
-    @Operation(summary = "Complete signup after OTP", description = "Create profile and issue JWToken")
-    @PostMapping("/signup")
-    public ResponseEntity<AuthResponse> completeSignup(@Valid @RequestBody SignupRequest request) {
-        String token = userService.completeSignup(
-                request.identifier(), request.username(), request.avatarUrl(),
-                request.bio(), request.email(), request.phone()
-        );
-        log.info("Signup completed for: {}", maskIdentifier(request.identifier()));
-        return ResponseEntity.ok(new AuthResponse(token));
-    }
-
     @Operation(summary = "Complete signup with refresh token", description = "Create profile and issue access + refresh tokens")
-    @PostMapping("/signup/refresh")
-    public ResponseEntity<TokenResponse> completeSignupWithRefreshToken(@Valid @RequestBody SignupRequest request) {
-        Map<String, String> tokens = userService.completeSignupWithRefreshToken(
+    @PostMapping("/signup")
+    public ResponseEntity<TokenResponse> signup(@Valid @RequestBody SignupRequest request) {
+        Map<String, String> tokens = userService.signup(
                 request.identifier(), request.username(), request.avatarUrl(),
                 request.bio(), request.email(), request.phone()
         );
@@ -74,17 +62,10 @@ public class AuthController {
         return ResponseEntity.ok(new TokenResponse(tokens.get("accessToken"), tokens.get("refreshToken")));
     }
 
-    @Operation(summary = "Complete login", description = "Issue JWT for existing user")
-    @PostMapping("/login")
-    public ResponseEntity<AuthResponse> completeLogin(@Valid @RequestBody LoginRequest request) {
-        String token = userService.completeLogin(request);
-        return ResponseEntity.ok(new AuthResponse(token));
-    }
-
     @Operation(summary = "Complete login with refresh token", description = "Issue access + refresh tokens")
-    @PostMapping("/login/refresh")
-    public ResponseEntity<TokenResponse> completeLoginWithRefreshToken(@Valid @RequestBody LoginRequest request) {
-        Map<String, String> tokens = userService.completeLoginWithRefreshToken(request);
+    @PostMapping("/login")
+    public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
+        Map<String, String> tokens = userService.login(request);
         return ResponseEntity.ok(new TokenResponse(tokens.get("accessToken"), tokens.get("refreshToken")));
     }
 
@@ -100,40 +81,6 @@ public class AuthController {
     public ResponseEntity<OtpResponse> logout(@Valid @RequestBody RefreshTokenRequest request) {
         userService.revokeRefreshToken(request.refreshToken());
         return ResponseEntity.ok(new OtpResponse("Logged out successfully"));
-    }
-
-    @Operation(summary = "Verify OTP and complete signup/login", description = "Combined endpoint that verifies OTP and issues JWT")
-    @PostMapping("/verify")
-    public ResponseEntity<AuthResponse> verify(@Valid @RequestBody VerifyRequest request) {
-        boolean valid = userService.verifyOtp(request.identifier(), request.otp());
-        if (!valid) {
-            throw new IllegalArgumentException("Invalid OTP");
-        }
-
-        // Check if user exists or is new
-        try {
-            // Existing User Logic
-            if (userService.userExists(request.identifier())) {
-                LoginRequest loginRequest = new LoginRequest(request.identifier(), request.email(), request.otp());
-                String token = userService.completeLogin(loginRequest);
-                log.info("Login completed via /verify for: {}", maskIdentifier(request.identifier()));
-                return ResponseEntity.ok(new AuthResponse(token));
-            }
-        } catch (Exception e) {
-            // Ignore check errors, proceed to signup logic if needed
-        }
-
-        // New User / Signup Logic
-        if (request.username() == null || request.username().trim().isEmpty()) {
-            throw new IllegalArgumentException("Username required for new user signup");
-        }
-
-        String token = userService.completeSignup(
-                request.identifier(), request.username(), request.avatarUrl(),
-                request.bio(), request.email(), request.phone()
-        );
-        log.info("Signup completed via /verify for: {}", maskIdentifier(request.identifier()));
-        return ResponseEntity.ok(new AuthResponse(token));
     }
 
     private String maskIdentifier(String id) {

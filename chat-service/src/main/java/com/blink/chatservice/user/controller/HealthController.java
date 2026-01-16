@@ -1,13 +1,17 @@
 package com.blink.chatservice.user.controller;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/api/v1/auth")
+@Tag(name = "Health Check", description = "User Authentication health check")
 public class HealthController {
 
-    @GetMapping("/api/v1/auth/ping")
+    @GetMapping("/ping")
     public String ping() {
-        return "Hey User Controller is Running Well, How about yours.";
+        return "Hey Auth Endpoint is working, what about others?";
     }
 }
