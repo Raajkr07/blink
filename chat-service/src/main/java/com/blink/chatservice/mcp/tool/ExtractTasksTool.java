@@ -1,6 +1,6 @@
 package com.blink.chatservice.mcp.tool;
 
-import com.blink.chatservice.ai.AiAnalysisService;
+import com.blink.chatservice.ai.service.AiAnalysisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
