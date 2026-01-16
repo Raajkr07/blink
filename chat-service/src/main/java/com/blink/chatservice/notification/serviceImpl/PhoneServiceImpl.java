@@ -80,35 +80,24 @@ public class PhoneServiceImpl implements PhoneService {
         try {
             // Format phone number (ensure it starts with +)
             String formattedPhone = formatPhoneNumber(phoneNumber);
-            
             // Create SMS message
             String message = String.format("Your %s verification code is: %s. Valid for 5 minutes.", appName, otp);
 
             boolean success = false;
             switch (smsProvider.toLowerCase()) {
-                case "twilio":
-                    success = sendViaTwilio(formattedPhone, message);
-                    break;
-                case "aws":
-                case "sns":
-                    success = sendViaAwsSns(formattedPhone, message);
-                    break;
-                case "generic":
-                case "http":
-                    success = sendViaGenericHttp(formattedPhone, message);
-                    break;
-                default:
+                case "twilio" -> success = sendViaTwilio(formattedPhone, message);
+                case "aws", "sns" -> success = sendViaAwsSns(formattedPhone, message);
+                case "generic", "http" -> success = sendViaGenericHttp(formattedPhone, message);
+                default -> {
                     log.error("Unknown SMS provider: {}", smsProvider);
                     return false;
+                }
             }
 
-            if (success) {
-                log.info("OTP SMS sent successfully to: {}", maskPhone(formattedPhone));
-            } else {
-                log.error("Failed to send OTP SMS to: {}", maskPhone(formattedPhone));
-            }
-
+            if (success) log.info("OTP SMS sent successfully to: {}", maskPhone(formattedPhone));
+              else log.error("Failed to send OTP SMS to: {}", maskPhone(formattedPhone));
             return success;
+
         } catch (Exception e) {
             log.error("Error sending OTP SMS to {}: {}", maskPhone(phoneNumber), e.getMessage(), e);
             return false;
@@ -204,7 +193,7 @@ public class PhoneServiceImpl implements PhoneService {
 
             StringBuilder bodyBuilder = new StringBuilder();
             params.forEach((key, value) -> {
-                if (bodyBuilder.length() > 0) {
+                if (!bodyBuilder.isEmpty()) {
                     bodyBuilder.append("&");
                 }
                 bodyBuilder.append(encode(key)).append("=").append(encode(value));
@@ -237,34 +226,24 @@ public class PhoneServiceImpl implements PhoneService {
     }
 
     private String formatPhoneNumber(String phoneNumber) {
-        if (phoneNumber == null || phoneNumber.trim().isEmpty()) {
-            return phoneNumber;
-        }
+        if (phoneNumber == null || phoneNumber.trim().isEmpty()) return phoneNumber;
 
         String cleaned = phoneNumber.trim().replaceAll("[\\s-()]", "");
 
-        if (!cleaned.startsWith("+")) {
-            cleaned = "+91" + cleaned;
-        }
-
+        if (!cleaned.startsWith("+")) cleaned = "+91" + cleaned;
         return cleaned;
     }
 
     private String normalizePhoneNumber(String phoneNumber) {
-        if (phoneNumber == null) {
-            return "";
-        }
+        if (phoneNumber == null) return "";
         String normalized = phoneNumber.replaceAll("[^+\\d]", "");
-        if (!normalized.startsWith("+")) {
-            normalized = "+" + normalized.replaceAll("\\D", "");
-        }
+        if (!normalized.startsWith("+")) normalized = "+" + normalized.replaceAll("\\D", "");
         return normalized;
     }
 
     private String encode(String value) {
-        if (value == null) {
-            return "";
-        }
+        if (value == null) return "";
+
         try {
             return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
         } catch (Exception e) {
@@ -273,9 +252,7 @@ public class PhoneServiceImpl implements PhoneService {
     }
 
     private String maskPhone(String phone) {
-        if (phone == null || phone.length() < 4) {
-            return "****";
-        }
+        if (phone == null || phone.length() < 4) return "****";
         return phone.substring(0, 2) + "****" + phone.substring(phone.length() - 2);
     }
 }
