@@ -1,6 +1,6 @@
 package com.blink.chatservice.user.controller;
 
-import com.blink.chatservice.notification.NotificationService;
+import com.blink.chatservice.notification.serviceImpl.NotificationServiceImpl;
 import com.blink.chatservice.user.dto.AuthDto.*;
 import com.blink.chatservice.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,7 +22,7 @@ public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final UserService userService;
-    private final NotificationService notificationService;
+    private final NotificationServiceImpl notificationServiceImpl;
 
     @Operation(summary = "Request OTP for signup/login", description = "Send OTP to phone/email. Creates/Signup user if new.")
     @PostMapping("/request-otp")
@@ -34,7 +34,7 @@ public class AuthController {
 
         // Best effort notification
         try {
-            boolean sent = notificationService.sendOtp(identifier, otp, "Blink", "http://localhost:5143");
+            boolean sent = notificationServiceImpl.sendOtp(identifier, otp, "Blink", "http://localhost:5143");
             if (!sent) {
                 log.warn("OTP generated but delivery failed for: {}", maskIdentifier(identifier));
             }
