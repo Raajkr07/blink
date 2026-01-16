@@ -15,30 +15,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@OpenAPIDefinition(
-        info = @Info(
-                title = "Blink Chat Service API",
-                version = "v1",
-                description = "Real-time chat backend for users, conversations, messages, and WebSocket.",
-                contact = @Contact(
-                        name = "Blink Backend Team",
-                        email = "support@blink.com",
-                        url = "https://blink.com"
-                ),
-                license = @License(name = "MIT", url = "https://opensource.org/licenses/MIT")
-        ),
-        servers = {
-                @Server(url = "${api.server.url}", description = "API Server")
-        },
-        security = @SecurityRequirement(name = "bearerToken")
-)
-@SecurityScheme(
-        name = "bearerToken",
-        type = SecuritySchemeType.HTTP,
-        scheme = "bearer",
-        bearerFormat = "JWT",
-        description = "Enter your JWT Bearer token in format **Bearer <token>**"
-)
 public class OpenApiConfig {
 
     @Value("${api.server.url:http://localhost:8080}")
@@ -50,7 +26,7 @@ public class OpenApiConfig {
                 .info(new io.swagger.v3.oas.models.info.Info()
                         .title("Blink Chat Service API")
                         .version("v1")
-                        .description("API documentation for Blink chat backend. Includes authentication, messaging, and real-time features.")
+                        .description("API documentation for Blink-chat service backend. Includes authentication, messaging, and real-time features.")
                         .contact(new io.swagger.v3.oas.models.info.Contact()
                                 .name("Blink Backend Team")
                                 .email("support@blink.com")
