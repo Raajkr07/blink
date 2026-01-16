@@ -1,4 +1,4 @@
-package com.blink.chatservice.notification;
+package com.blink.chatservice.notification.serviceImpl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +17,7 @@ import jakarta.mail.internet.MimeMessage;
 @RequiredArgsConstructor
 @Slf4j
 @Service
-public class EmailService {
+public class EmailServiceImpl {
 
     private final JavaMailSender mailSender;
     private final SpringTemplateEngine templateEngine;
