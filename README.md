@@ -33,80 +33,150 @@ Beyond that, I've built in some practical features that I think make this app re
 
 Here's what the app looks like in action:
 
-<table>
-  <tr>
-    <td width="50%">
-      <img src="ss/frontend-v1_login.png" alt  alt="Login Screen" width="100%"/>
-      <p align="center"><strong>Clean, simple login</strong></p>
-    </td>
-    <td width="50%">
-      <img src="ss/frontend-v2-signup.png" alt="Chat Interface" width="100%"/>
-      <p align="center"><strong>Clean, simple Signup</strong></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="33%">
-      <img src="ss/frontend-v1-AI.png" alt="AI" width="100%"/>
-      <p align="center"><strong>Chit-Chat with AI</strong></p>
-    </td>
-    <td width="33%">
-      <img src="ss/frontend-v2-AI.png" alt="capibilities" width="100%"/>
-      <p align="center"><strong>AI-powered capibilities with MCP</strong></p>
-    </td>
-    <td width="34%">
-      <img src="ss/frontend-v2-chatPage.png" alt="AI Integration" width="100%"/>
-      <p align="center"><strong>minimalistic chat page</strong></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="ss/frontend-v2-profileSetting.png" alt="Mobile View" width="100%"/>
-      <p align="center"><strong>Profile Setting</strong></p>
-    </td>
-    <td width="50%">
-      <img src="ss/frontend-v2-lightTheme.png" alt="Dark Mode" width="100%"/>
-      <p align="center"><strong>Dark and light mode support</strong></p>
-    </td>
-  </tr>
-</table>
+| Login | Signup |
+|------|--------|
+| ![](ss/frontend-v1_login.png) | ![](ss/frontend-v2-signup.png) |
 
-*These screenshots show the actual application - I'll add them to the screenshots/ folder*
+| AI Chat | MCP Capabilities | Chat Page |
+|--------|------------------|-----------|
+| ![](ss/frontend-v1-AI.png) | ![](ss/frontend-v2-AI.png) | ![](ss/frontend-v2-chatPage.png) |
+
+| Profile | Theme |
+|--------|-------|
+| ![](ss/frontend-v2-profileSetting.png) | ![](ss/frontend-v2-lightTheme.png) |
+
+*These screenshots show the actual application - I'll add them to the screenshots(ss)/ folder*
 
 ## 🏗️ Architecture
 
 I built this as a **monolithic application** rather than breaking it into microservices. For this use case, the monolithic approach actually makes a lot of sense - the chat functionality is tightly coupled, and I didn't want the complexity of managing distributed transactions across services.
+```
+This AWS(EKS) architecture is pretty straightforward but robust:
+```
+```mermaid
+flowchart TB
+    Client["Client<br/>Web / Mobile"]
 
-The architecture is pretty straightforward but robust:
+    subgraph AWS["AWS Cloud"]
+        ALB["AWS ALB / NLB (Ingress)"]
+
+        subgraph EKS["EKS Cluster"]
+            subgraph NS["Namespace: blink-chat"]
+
+                %% Application Layer
+                subgraph APP["Blink Chat App"]
+                    SVC["Service"]
+
+                    subgraph RS["ReplicaSet"]
+                        POD1["Blink Chat Pod"]
+                        POD2["Blink Chat Pod"]
+                    end
+                end
+
+                %% Data Layer
+                subgraph DATA["Data Services"]
+
+                    subgraph MongoRS["MongoDB Pod"]
+                        Mongo[(MongoDB)]
+                    end
+
+                    subgraph RedisRS["Redis Pod"]
+                        Redis[(Redis)]
+                    end
+                end
+            end
+        end
+
+        SMTP["SMTP Email Service"]
+        AI["LLM Provider<br/>(Spring AI + MCP)"]
+    end
+
+    %% Ingress Flow
+    Client --> ALB
+    ALB --> SVC
+    SVC --> POD1
+    SVC --> POD2
+
+    %% Internal Service Communication
+    POD1 --> Mongo
+    POD1 --> Redis
+
+    POD2 --> Mongo
+    POD2 --> Redis
+
+    %% External Integrations
+    POD1 --> SMTP
+    POD1 --> AI
+
+    POD2 --> SMTP
+    POD2 --> AI
+```
+```
+Below is the application Request/Response flow:
+```
+```mermaid
+
+flowchart TD
+    Client["Client<br/>Web / Mobile"]
+
+    ALB["AWS ALB Ingress"]
+    App["Blink Chat Pod"]
+
+    %% Controller Layer
+    subgraph Controller["Controller Layer"]
+        AuthCtrl["Auth Controller<br/>(JWT)"]
+        ChatCtrl["REST / WebSocket Controller<br/>(STOMP)"]
+    end
+
+    %% Service Layer
+    subgraph Service["Service Layer"]
+        ChatSvc["Chat Service"]
+        AISvc["AI Service<br/>(Spring AI + MCP)"]
+        NotifySvc["Notification Service"]
+    end
+
+    %% Repository Layer
+    subgraph Repository["Repository Layer"]
+        MongoRepo["Mongo Repository"]
+        RedisRepo["Redis Repository"]
+    end
+
+    %% External Systems
+    DB[(MongoDB)]
+    Cache[(Redis)]
+    Mail["SMTP"]
+
+    %% Request Flow
+    Client -->|HTTP / WebSocket| ALB
+    ALB --> App
+    App --> AuthCtrl
+
+    AuthCtrl -->|JWT Valid| ChatCtrl
+
+    %% Controller → Service
+    ChatCtrl --> ChatSvc
+    ChatCtrl --> AISvc
+
+    %% Service → Repository
+    ChatSvc --> MongoRepo
+    ChatSvc --> RedisRepo
+
+    %% Repository → External
+    MongoRepo --> DB
+    RedisRepo --> Cache
+
+    %% Optional Notification
+    ChatSvc -.-> NotifySvc
+    NotifySvc -.-> Mail
+
+    %% Response Flow
+    AISvc --> ChatCtrl
+    ChatSvc --> ChatCtrl
+    ChatCtrl --> App
+    App --> ALB
+    ALB --> Client
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Blink Chat Application                   │
-│                    (Spring Boot Monolith)                   │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────┐    │
-│  │                 AI Integration Layer                │    │
-│  │              (Spring AI + MCP Protocol)             │    │
-│  └─────────────────────────────────────────────────────┘    │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐    │
-│  │   WebSocket │ │   REST API  │ │   Authentication    │    │
-│  │  (STOMP)    │ │             │ │   (JWT)             │    │
-│  └─────────────┘ └─────────────┘ └─────────────────────┘    │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐    │
-│  │   MongoDB   │ │    Redis    │ │   Email Service     │    │
-│  │ (Messages & │ │ (Caching &  │ │   (SMTP)            │    │
-│  │   Users)    │ │ Rate Limit) │ │                     │    │
-│  └─────────────┘ └─────────────┘ └─────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Client/my frontend                       │
-│              (Two different implementations)                │
-└─────────────────────────────────────────────────────────────┘
-```
-
 The AI layer sits at the heart of everything, using the Model Context Protocol to communicate with various AI models. I really enjoyed implementing this part - it was challenging but rewarding to see how AI can enhance real-time communication.
 
 ## 🛠️ Tech Stack
