@@ -65,7 +65,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public boolean verifyOtp(String identifier, String otp) {
-        return otpService.validateOtp(identifier, otp);
+        boolean valid = otpService.validateOtp(identifier, otp);
+        if (valid) {
+            // Mark as verified for the login step
+            otpService.markOtpAsVerified(identifier);
+        }
+        return valid;
     }
 
     @Override
@@ -107,13 +112,21 @@ public class UserServiceImpl implements UserService {
             throw new IllegalStateException("Profile incomplete. Please complete signup first.");
         }
 
+        // Support both one-step (OTP in login) and two-step (verify-otp then login) flows
         if (loginRequest.otp() != null && !loginRequest.otp().trim().isEmpty()) {
+            // One-step flow: validate OTP during login
             boolean valid = otpService.validateOtp(loginRequest.identifier(), loginRequest.otp());
             if (!valid) throw new IllegalStateException("Invalid or expired OTP");
-
+            
             otpService.deleteOtp(loginRequest.identifier());
         } else {
-            otpService.deleteOtp(loginRequest.identifier());
+            // Two-step flow: check if OTP was verified in previous step
+            if (!otpService.isOtpVerified(loginRequest.identifier())) {
+                throw new IllegalStateException("OTP verification required. Please verify OTP first.");
+            }
+            
+            // Clear verification flag after successful login
+            otpService.clearVerification(loginRequest.identifier());
         }
 
         log.info("User login completed for: {}", user.getId());
