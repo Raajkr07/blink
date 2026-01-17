@@ -1,6 +1,9 @@
 package com.blink.chatservice.user.service;
 
+import com.blink.chatservice.exception.GlobalExceptionHandler;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import java.time.Duration;
@@ -63,9 +66,28 @@ public class OtpService {
         return valid;
     }
 
+    public void markOtpAsVerified(String identifier) {
+        String verifiedKey = "otp:verified:" + identifier;
+        redisTemplate.opsForValue().set(verifiedKey, "true", OTP_EXPIRY);
+    }
+
+    public boolean isOtpVerified(String identifier) {
+        String verifiedKey = "otp:verified:" + identifier;
+        String verified = redisTemplate.opsForValue().get(verifiedKey);
+        return "true".equals(verified);
+    }
+
+    public void clearVerification(String identifier) {
+        String verifiedKey = "otp:verified:" + identifier;
+        redisTemplate.delete(verifiedKey);
+    }
 
     public void deleteOtp(String identifier) {
         String otpKey = "otp:" + identifier;
+        String attemptsKey = "otp:attempts:" + identifier;
+        String verifiedKey = "otp:verified:" + identifier;
         redisTemplate.delete(otpKey);
+        redisTemplate.delete(attemptsKey);
+        redisTemplate.delete(verifiedKey);
     }
 }
