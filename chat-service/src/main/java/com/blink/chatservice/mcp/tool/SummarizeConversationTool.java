@@ -39,7 +39,7 @@ public class SummarizeConversationTool implements McpTool {
     }
 
     @Override
-    public Object execute(String userId, Map<String, Object> args) {
+    public Object execute(String userId, Map<Object, Object> args) {
         String conversationId = (String) args.get("conversationId");
 
         List<Message> messages = messageRepository

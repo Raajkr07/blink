@@ -38,7 +38,7 @@ public class SaveFileTool implements McpTool {
     }
 
     @Override
-    public Object execute(String userId, Map<String, Object> args) {
+    public Object execute(String userId, Map<Object, Object> args) {
         try {
             String filename = (String) args.get("filename");
             String content = (String) args.get("content");

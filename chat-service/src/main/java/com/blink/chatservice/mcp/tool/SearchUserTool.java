@@ -39,7 +39,7 @@ public class SearchUserTool implements McpTool {
     }
 
     @Override
-    public Object execute(String userId, Map<String, Object> args) {
+    public Object execute(String userId, Map<Object, Object> args) {
         String query = (String) args.get("query");
         List<User> users = userRepository.findAll().stream()
                 .filter(u -> (u.getUsername() != null && u.getUsername().contains(query)) ||

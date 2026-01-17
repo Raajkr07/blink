@@ -30,7 +30,7 @@ public class ListConversationsTool implements McpTool {
     }
 
     @Override
-    public Object execute(String userId, Map<String, Object> arguments) {
+    public Object execute(String userId, Map<Object, Object> arguments) {
         return chatService.listConversationsForUser(userId);
     }
 }

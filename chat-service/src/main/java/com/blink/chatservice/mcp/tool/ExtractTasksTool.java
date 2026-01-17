@@ -35,7 +35,7 @@ public class ExtractTasksTool implements McpTool {
     }
 
     @Override
-    public Object execute(String userId, Map<String, Object> args) {
+    public Object execute(String userId, Map<Object, Object> args) {
         String text = (String) args.get("text");
         return aiAnalysisService.extractTask(text);
     }

@@ -46,7 +46,7 @@ public class SendMessageTool implements McpTool {
     }
 
     @Override
-    public Object execute(String userId, Map<String, Object> args) {
+    public Object execute(String userId, Map<Object, Object> args) {
         try {
             String conversationId = (String) args.get("conversationId");
             String content = (String) args.get("content");
