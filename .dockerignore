@@ -1,0 +1,23 @@
+# Ignore build artifacts and dependencies
+target/
+node_modules/
+dist/
+build/
+*.log
+*.tmp
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+.git/
+.gitignore
+**/Dockerfile*
+**/docker-compose*
+README.md
+HELP.md
+mvnw
+mvnw.cmd
+.mvn/
+src/test/
