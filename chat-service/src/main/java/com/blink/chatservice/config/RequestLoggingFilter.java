@@ -25,6 +25,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         
         long startTime = System.currentTimeMillis();
         String requestId = UUID.randomUUID().toString();
+        // Adding unique request ID to MDC so we can trace logs for a single request across all threads.
         MDC.put("requestId", requestId);
         
         String path = request.getRequestURI();
@@ -36,6 +37,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         } finally {
             long duration = System.currentTimeMillis() - startTime;
             int status = response.getStatus();
+            // Logging user ID if available, helps in debugging user-specific issues.
             String userId = request.getUserPrincipal() != null ? request.getUserPrincipal().getName() : "anonymous";
 
             log.info("Finished request {} {} status={} time={}ms user={}", 
