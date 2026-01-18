@@ -43,6 +43,8 @@ public class UserServiceImpl implements UserService {
 
         if (isValidPhone(identifier)) {
             userRepository.findByPhone(identifier).orElseGet(() -> {
+                // Creating a stub user so the phone number is 'reserved' immediately. 
+                // Prevents race conditions if two people try to sign up with same number simultaneously.
                 User stub = new User();
                 stub.setPhone(identifier);
                 stub.setCreatedAt(LocalDateTime.now());
@@ -112,20 +114,19 @@ public class UserServiceImpl implements UserService {
             throw new IllegalStateException("Profile incomplete. Please complete signup first.");
         }
 
-        // Support both one-step (OTP in login) and two-step (verify-otp then login) flows
+        // Handling two login flows: 
+        // 1. One-step: OTP provided directly in login request (common mobile flow).
+        // 2. Two-step: OTP verified separately, then login called (web flow).
         if (loginRequest.otp() != null && !loginRequest.otp().trim().isEmpty()) {
-            // One-step flow: validate OTP during login
             boolean valid = otpService.validateOtp(loginRequest.identifier(), loginRequest.otp());
             if (!valid) throw new IllegalStateException("Invalid or expired OTP");
             
             otpService.deleteOtp(loginRequest.identifier());
         } else {
-            // Two-step flow: check if OTP was verified in previous step
             if (!otpService.isOtpVerified(loginRequest.identifier())) {
                 throw new IllegalStateException("OTP verification required. Please verify OTP first.");
             }
             
-            // Clear verification flag after successful login
             otpService.clearVerification(loginRequest.identifier());
         }
 
@@ -182,6 +183,8 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
+        // Weird edge case: sometimes internal class names leak into username if registration goes wrong.
+        // Sanitizing it here just in case.
         if (user.getUsername() != null && user.getUsername().contains("java.util."))
             user.setUsername("User");
         return user;
@@ -247,24 +250,23 @@ public class UserServiceImpl implements UserService {
 
         String trimmed = contact.trim();
 
-        // 1. Check if it's a valid User ID
+        // Heuristic resolution: ID -> Username -> Phone (fuzzy) -> Email.
+        // Critical for 'add by contact' feature where input format is unknown.
+
         if (userRepository.existsById(trimmed)) {
             return trimmed;
         }
 
-        // 2. Exact Username Match
         Optional<User> byUsername = userRepository.findByUsername(trimmed);
         if (byUsername.isPresent()) {
             return byUsername.get().getId();
         }
 
-        // 3. Phone Match (Clean logic)
         String phoneCleaned = trimmed.replaceAll("[\\s-()]", "");
-        // 3a. Exact match on cleaned
         Optional<User> byPhone = userRepository.findByPhone(phoneCleaned);
         if (byPhone.isPresent()) return byPhone.get().getId();
 
-        // 3b. Try adding/removing +91
+        // 3b. Fuzzy phone match: handle missing or extra +91 prefix
         if (!phoneCleaned.startsWith("+91") && phoneCleaned.length() == 10) {
             String withCountry = "+91" + phoneCleaned;
             if (userRepository.existsByPhone(withCountry)) {
@@ -277,7 +279,6 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        // 4. Email Match
         String emailLower = trimmed.toLowerCase(Locale.ROOT);
         return userRepository.findFirstByEmail(emailLower).map(User::getId).orElse(null);
     }
