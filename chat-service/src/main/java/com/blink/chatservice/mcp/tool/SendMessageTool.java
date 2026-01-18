@@ -70,7 +70,7 @@ public class SendMessageTool implements McpTool {
             log.info("MCP tool sent message: conversationId={}, senderId={}, messageId={}", 
                     conversationId, userId, saved.getId());
 
-            // Broadcast message via WebSocket so it appears in real-time
+            // Broadcasting the message immediately via WebSocket so the UI updates without manual refresh.
             try {
                 RealtimeMessageResponse resp = new RealtimeMessageResponse(
                         saved.getId(),
@@ -81,12 +81,10 @@ public class SendMessageTool implements McpTool {
                         saved.getCreatedAt()
                 );
 
-                // Broadcast to conversation topic
                 String conversationTopic = "/topic/conversations/" + saved.getConversationId();
                 messagingTemplate.convertAndSend(conversationTopic, resp);
                 log.debug("Broadcasted MCP message to topic: {}", conversationTopic);
 
-                // Also send via user-specific queues for direct messages
                 if (saved.getRecipientId() != null) {
                     messagingTemplate.convertAndSendToUser(
                             saved.getSenderId(),
@@ -100,8 +98,8 @@ public class SendMessageTool implements McpTool {
                     );
                 }
             } catch (Exception e) {
+                // Not throwing exception here. If internal broadcast fails, message is still saved in DB.
                 log.error("Failed to broadcast MCP message via WebSocket", e);
-                // Don't fail the tool execution if WebSocket broadcast fails
             }
 
             return Map.of(
