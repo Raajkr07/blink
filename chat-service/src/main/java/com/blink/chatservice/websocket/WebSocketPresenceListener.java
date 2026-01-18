@@ -28,6 +28,7 @@ public class WebSocketPresenceListener {
         if (principal == null) return;
 
         String userId = principal.getName();
+        // Updating DB on connect. Note: Heavy write per connect, optimize with Redis setbit in future.
         userRepository.findById(userId).ifPresent(user -> {
             user.setOnline(true);
             userRepository.save(user);

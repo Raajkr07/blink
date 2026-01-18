@@ -1,5 +1,7 @@
 package com.blink.chatservice.websocket.controller;
 
+import com.blink.chatservice.ai.service.AiService;
+import com.blink.chatservice.chat.entity.Message;
 import com.blink.chatservice.chat.service.ChatService;
 import com.blink.chatservice.websocket.dto.RealtimeMessageRequest;
 import com.blink.chatservice.websocket.dto.TypingRequest;
@@ -19,6 +21,7 @@ import java.security.Principal;
 public class ChatWsController {
 
     private final ChatService chatService;
+    private final AiService aiService;
     private final SimpMessagingTemplate messagingTemplate;
 
     @MessageMapping("/chat.sendMessage")
@@ -31,6 +34,35 @@ public class ChatWsController {
     public void sendMessageSimple(@Payload RealtimeMessageRequest request,
                                   Principal principal) {
         handleSendMessage(request, principal);
+    }
+
+    @MessageMapping("/ai.chat")
+    public void chatWithAi(@Payload RealtimeMessageRequest request, Principal principal) {
+        if (principal == null || request == null) return;
+
+        String userId = principal.getName();
+        String conversationId = request.conversationId();
+
+        chatService.sendMessage(conversationId, userId, request.body());
+
+        // 2. Trigger AI Processing asynchronously (optional, but good for performance)
+        // For now, we'll keep it simple/synchronous as per your previous HTTP controller logic
+        try {
+            Message aiResponse = aiService.processAiMessage(userId, conversationId, request.body());
+
+            // 3. Broadcast AI Response
+            // Note: processAiMessage likely saves it DB-side. We need to push it to WS.
+            // If aiService doesn't allow broadcasting, typically you'd just call chatService.sendMessage
+            // with the AI's response content, pretending to be the AI user.
+            // But assuming aiResponse is the saved message entity:
+            messagingTemplate.convertAndSend(
+                    "/topic/conversations/" + conversationId,
+                    aiResponse
+            );
+
+        } catch (Exception e) {
+            log.error("Error in AI chat", e);
+        }
     }
 
     private void handleSendMessage(RealtimeMessageRequest request, Principal principal) {

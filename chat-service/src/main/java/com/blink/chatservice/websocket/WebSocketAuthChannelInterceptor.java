@@ -23,7 +23,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
 
         if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
             String authHeader = accessor.getFirstNativeHeader("Authorization");
-            // parse the Bearer token
+            // Intercepting CONNECT header to extract JWT and authenticate the WS session.
             String userId = tokenService.getUserIdFromHeader(authHeader);
             if (userId != null) {
                 var authentication = new UsernamePasswordAuthenticationToken(userId, null, null);

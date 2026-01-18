@@ -17,6 +17,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
+                // Allowing all origins for dev simplicity, but should be restricted in Prod.
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
     }
@@ -30,6 +31,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
+        // Injecting auth interceptor to validate JWT on CONNECT frame.
         registration.interceptors(webSocketAuthChannelInterceptor);
     }
 }
