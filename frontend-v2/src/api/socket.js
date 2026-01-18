@@ -17,7 +17,7 @@ class SocketService {
 
         this.connectionPromise = new Promise((resolve, reject) => {
             const token = storage.get(STORAGE_KEYS.ACCESS_TOKEN);
-            const socketUrl = env.WS_URL;
+            const socketUrl = env.WS_URL.replace(/^ws(s)?:\/\//, 'http$1://');
 
             this.client = new Client({
                 webSocketFactory: () => new SockJS(socketUrl),

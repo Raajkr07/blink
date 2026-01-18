@@ -1,5 +1,6 @@
 package com.blink.chatservice.chat.controller;
 
+import com.blink.chatservice.chat.dto.ErrorResponse;
 import com.blink.chatservice.chat.dto.UpdateGroupRequest;
 import com.blink.chatservice.chat.entity.Conversation;
 import com.blink.chatservice.chat.service.ChatService;
@@ -129,7 +130,7 @@ public class GroupChatController {
 
     @PostMapping("/{groupId}/leave")
     @Operation(summary = "Leave a group conversation")
-    public ResponseEntity<Void> leaveGroup(
+    public ResponseEntity<ErrorResponse> leaveGroup(
             Authentication auth,
             @PathVariable String groupId
     ) {
@@ -138,7 +139,7 @@ public class GroupChatController {
             chatService.leaveGroup(groupId, userId);
             return ResponseEntity.ok().build();
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
             System.err.println("Error leaving group: " + e.getMessage());
             e.printStackTrace();

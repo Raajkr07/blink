@@ -11,4 +11,12 @@ public class ErrorResponse {
     private String error;
     private String message;
     private String details;
+
+    public ErrorResponse(String message) {
+        this.message =message;
+    }
+
+    public String ErrorResponse(String message) {
+        return message;
+    }
 }

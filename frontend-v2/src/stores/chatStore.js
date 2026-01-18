@@ -55,7 +55,7 @@ export const useChatStore = create((set) => ({
 
     removeOptimisticMessage: (tempId) =>
         set((state) => {
-            const { [tempId]: removed, ...rest } = state.optimisticMessages;
+            const { [tempId]: _, ...rest } = state.optimisticMessages;
             return { optimisticMessages: rest };
         }),
 

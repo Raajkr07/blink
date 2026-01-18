@@ -70,12 +70,12 @@ export const chatApi = {
     },
 
     joinGroup: async (groupId) => {
-        const response = await apiClient.post(`/api/v1/chat/groups/${groupId}/join`);
+        const response = await apiClient.post(`/api/v1/chat/groups/${groupId}/join`, {});
         return response.data;
     },
 
     leaveGroup: async (groupId) => {
-        const response = await apiClient.post(`/api/v1/chat/groups/${groupId}/leave`);
+        const response = await apiClient.post(`/api/v1/chat/groups/${groupId}/leave`, null);
         return response.data;
     },
 
