@@ -20,6 +20,8 @@ export const useUIStore = create((set) => ({
 
     isMobile: window.innerWidth < 768,
 
+    activeView: 'chat',
+    setActiveView: (view) => set({ activeView: view }),
 
     toggleSidebar: () => set((state) => {
         if (state.isMobile) {
