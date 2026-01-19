@@ -1,0 +1,69 @@
+# Test Configuration for Chat Service
+# This configuration is used for testing and mocks external dependencies
+
+spring:
+  application:
+    name: chat-service-test
+  
+  # Mail configuration
+  mail:
+    host: localhost
+    port: 3025
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+  
+  # MongoDB configuration
+  data:
+    mongodb:
+      database: test-db
+      host: localhost
+      port: 27017
+    
+    # Redis configuration
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+  
+  # Security configuration
+  security:
+    user:
+      name: test
+      password: test
+
+# Server configuration
+server:
+  port: 0  # Random port for tests
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-exception: true
+
+# Logging configuration
+logging:
+  level:
+    root: INFO
+    com.blink.chatservice: DEBUG
+    org.springframework.web: WARN
+    org.springframework.security: WARN
+    org.mongodb.driver: WARN
+    org.springframework.data.mongodb: WARN
+
+# JWT configuration
+jwt:
+  secret: test-secret-key-for-testing-purposes-only-do-not-use-in-production
+  expiration: 3600000  # 1 hour
+  refresh-expiration: 86400000  # 24 hours
+
+# Application-specific test properties
+app:
+  name: Blink Test
+  frontend-url: http://localhost:3000
+  cors:
+    allowed-origins: http://localhost:5173
