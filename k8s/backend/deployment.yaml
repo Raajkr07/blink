@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+  namespace: blink-chat
+  labels:
+    app: chat-service
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+        version: v1
+    spec:
+      containers:
+      - name: chat-service
+        image: raajkr07/blink-chat-service:main-07d1a7a
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: SPRING_PROFILES_ACTIVE
+        - name: SERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: SERVER_PORT
+        - name: SPRING_DATA_MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secret
+              key: MONGODB_URI
+        - name: SPRING_DATA_MONGODB_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: SPRING_DATA_MONGODB_DATABASE
+        - name: SPRING_DATA_REDIS_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: SPRING_DATA_REDIS_HOST
+        - name: SPRING_DATA_REDIS_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: SPRING_DATA_REDIS_PORT
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secret
+              key: JWT_SECRET
+        - name: SPRING_MAIL_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: SPRING_MAIL_HOST
+        - name: SPRING_MAIL_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: chat-service-config
+              key: SPRING_MAIL_PORT
+        - name: SPRING_MAIL_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secret
+              key: SPRING_MAIL_USERNAME
+        - name: SPRING_MAIL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: chat-service-secret
+              key: SPRING_MAIL_PASSWORD
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+      restartPolicy: Always
