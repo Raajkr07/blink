@@ -15,8 +15,8 @@ on:
       - '.github/workflows/frontend-v2.yaml'
 
 env:
-  IMAGE_REPO: raajkr07/blink
-  IMAGE_NAME: frontend-v2
+  IMAGE_REPO: raajkr07
+  IMAGE_NAME: blink-frontend-v2
   NODE_VERSION: 18
 
 jobs:
