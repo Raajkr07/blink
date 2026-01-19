@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: blink-chat
+
+namespace: blink-chat
+
+resources:
+  - namespace.yaml
+  - rbac.yaml
+  - backend/configmap.yaml
+  - backend/secret.yaml
+  - backend/deployment.yaml
+  - storage-class.yaml
+  - backend/service.yaml
+  - databases/mongodb.yaml
+  - databases/redis.yaml
+  - backend/hpa.yaml
+  - ingress.yaml
+
+images:
+  - name: raajkr07/blink-chat-service
+    newTag: main-07d1a7a
+
+commonLabels:
+  app.kubernetes.io/name: blink-chat
+  app.kubernetes.io/version: "1.0.0"
+  app.kubernetes.io/managed-by: argocd
