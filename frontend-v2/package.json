@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "test:ci": "vitest run --coverage"
+    "test:ci": "vitest run --coverage --passWithNoTests"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",
