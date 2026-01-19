@@ -15,10 +15,10 @@ on:
       - '.github/workflows/chat-service.yaml'
 
 env:
-  IMAGE_REPO: raajkr07/blink
-  IMAGE_NAME: chat-service
+  IMAGE_REPO: raajkr07
+  IMAGE_NAME: blink-chat-service
   JAVA_VERSION: 17
-
+  
 jobs:
   test:
     name: Test Chat Service
