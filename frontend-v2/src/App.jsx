@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAuthStore, useUIStore, useCallStore } from './stores';
 import { socketService } from './api/socket';
 import { AuthPage } from './components/auth';
@@ -12,7 +12,7 @@ function App() {
   const { isAuthenticated, user } = useAuthStore();
   const { setIsMobile, theme } = useUIStore();
   const { hasActiveCall, hasIncomingCall, receiveIncomingCall } = useCallStore();
-  const [mediaPermissionGranted, setMediaPermissionGranted] = useState(false);
+
 
 
   useEffect(() => {
@@ -35,49 +35,7 @@ function App() {
     }
   }, [theme]);
 
-  // Request media permissions when user logs in
-  useEffect(() => {
-    if (!isAuthenticated || mediaPermissionGranted) return;
 
-    const requestMediaPermissions = async () => {
-      try {
-        // Request both camera and microphone permissions upfront
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: true,
-        });
-
-        // Stop the stream immediately - we just wanted to get permission
-        stream.getTracks().forEach(track => track.stop());
-
-        setMediaPermissionGranted(true);
-        toast.success('Camera and microphone access granted');
-        console.log('Media permissions granted successfully');
-      } catch (error) {
-        console.error('Media permission error:', error);
-
-        if (error.name === 'NotAllowedError') {
-          toast.error('Please allow camera and microphone access for video calls');
-        } else if (error.name === 'NotFoundError') {
-          // Try audio only if no camera
-          try {
-            const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            audioStream.getTracks().forEach(track => track.stop());
-            setMediaPermissionGranted(true);
-            toast.success('Microphone access granted (no camera found)');
-          } catch (audioError) {
-            toast.error('No microphone found on your device');
-          }
-        } else {
-          toast.error('Failed to access camera/microphone');
-        }
-      }
-    };
-
-    // Request permissions after a short delay to avoid overwhelming the user
-    const timer = setTimeout(requestMediaPermissions, 1000);
-    return () => clearTimeout(timer);
-  }, [isAuthenticated, mediaPermissionGranted]);
 
   // Listen for incoming call notifications via WebSocket
   useEffect(() => {
