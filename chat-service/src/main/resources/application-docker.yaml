@@ -2,9 +2,6 @@ spring:
   application:
     name: chat-service
 
-  profiles:
-    active: docker
-
   data:
     mongodb:
       # Here write container/service name instead of localhost inside Docker.
