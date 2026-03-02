@@ -104,6 +104,21 @@ jobs:
               docker stop blinxai-api || true
               docker rm blinxai-api || true
               
+              echo "📊 Ensuring Datadog agent is running with host networking..."
+              if ! docker ps --format '{{.Names}}' | grep -q "datadog-agent"; then
+                echo "🚀 Starting Datadog agent..."
+                docker run -d --name datadog-agent \
+                  --restart unless-stopped \
+                  --network host \
+                  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+                  -v /proc/:/host/proc/:ro \
+                  -v /sys/fs/cgroup/:/host/sys/fs/cgroup/:ro \
+                  -v /opt/datadog-agent/run:/opt/datadog-agent/run:rw \
+                  -e DD_API_KEY=$(doppler secrets get DD_API_KEY --plain) \
+                  -e DD_SITE=us5.datadoghq.com \
+                  gcr.io/datadoghq/agent:7
+              fi
+
               echo "🚀 Starting new blinxai-api (Doppler + Datadog)..."
               docker run -d \
                 --name blinxai-api \
@@ -113,8 +128,9 @@ jobs:
                 --memory-swap=4g \
                 --label com.datadoghq.ad.logs="[{\"source\":\"java\",\"service\":\"blinx-chat-service\",\"log_processing_rules\":[{\"type\":\"multi_line\",\"name\":\"java_stacktrace\",\"pattern\":\"\\\\s+(at |Caused by|\\\\.\\\\.\\\\.)\"}]}]" \
                 --env-file <(doppler secrets download --no-file --format env | sed '\''s/="\(.*\)"$/=\1/'\'') \
-                -e DD_AGENT_HOST=localhost \
+                -e DD_AGENT_HOST=127.0.0.1 \
                 -e DD_TRACE_AGENT_PORT=8126 \
+                -e DD_DOGSTATSD_PORT=8125 \
                 -e DD_SITE=us5.datadoghq.com \
                 $IMAGE_PATH
               

@@ -53,11 +53,11 @@ class UserServiceImplTest {
     @Test
     void requestOtp_withValidPhone_shouldSaveUserAndGenerateOtp() {
         String phone = "9876543210";
-        when(userRepository.findByPhone(phone)).thenReturn(Optional.empty());
+        when(userRepository.existsByPhone(phone)).thenReturn(false);
         when(userRepository.save(any(User.class))).thenReturn(testUser);
         when(otpService.generateOtp(phone)).thenReturn("123456");
 
-        String otp = userService.requestOtp(phone);
+        String otp = userService.requestOtp(phone, "default");
 
         assertEquals("123456", otp);
         verify(userRepository).save(any(User.class));
@@ -68,7 +68,7 @@ class UserServiceImplTest {
     void requestOtp_withInvalidIdentifier_shouldThrowException() {
         String invalid = "invalid";
 
-        assertThrows(IllegalArgumentException.class, () -> userService.requestOtp(invalid));
+        assertThrows(IllegalArgumentException.class, () -> userService.requestOtp(invalid, "signup"));
     }
 
     @Test
