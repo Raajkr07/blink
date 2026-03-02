@@ -9,4 +9,5 @@ public interface NotificationService {
     String maskPhone(String phone);
     String maskEmail(String email);
     String maskIdentifier(String identifier);
+    void sendWelcomeGreeting(String identifier, String userName);
 }

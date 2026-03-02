@@ -2,10 +2,11 @@ import { motion as Motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { BlinkingFace } from '../../pages/BlinkingFace';
 import { toast } from 'react-hot-toast';
+import { env } from '../../config/env';
 
 export const LegalLayout = ({ title, lastUpdated, children }) => {
     const handleSupportClick = () => {
-        toast.success('Opening email for support...', {
+        toast.success(`Opening email for support (${env.SUPPORT_EMAIL})...`, {
             icon: '✉️',
             style: {
                 borderRadius: '12px',
@@ -74,7 +75,7 @@ export const LegalLayout = ({ title, lastUpdated, children }) => {
                         <Link to="/privacy-policy" className="hover:text-blue-500 transition-colors">Privacy</Link>
                         <Link to="/data-deletion" className="hover:text-blue-500 transition-colors">Deletion</Link>
                         <a
-                            href="mailto:rk8210032@gmail.com"
+                            href={`mailto:${env.SUPPORT_EMAIL}`}
                             onClick={handleSupportClick}
                             className="hover:text-blue-500 transition-colors"
                         >

@@ -1,5 +1,6 @@
 package com.blink.chatservice.user.service;
 
+import com.blink.chatservice.notification.service.NotificationService;
 import com.blink.chatservice.config.JwtConfig;
 import com.blink.chatservice.security.JwtUtil;
 import com.blink.chatservice.user.dto.AuthDto;
@@ -35,6 +36,7 @@ public class UserServiceImpl implements UserService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtConfig jwtConfig;
     private final CacheManager cacheManager;
+    private final NotificationService notificationService;
 
     @Override
     public String requestOtp(String identifier, String intent) {
@@ -128,6 +130,9 @@ public class UserServiceImpl implements UserService {
             var cache = cacheManager.getCache("users_v2");
             if (cache != null) cache.evict(user.getId());
         }
+
+        // Send welcome greeting
+        notificationService.sendWelcomeGreeting(identifier, username);
 
         return Map.of("accessToken", jwtUtil.generateToken(user), "refreshToken", createRefreshToken(user.getId()));
     }

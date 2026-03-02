@@ -24,7 +24,9 @@ export const env = {
     // App Identity
     APP_NAME: 'Blinx AI Assistant',
     APP_DOMAIN: import.meta.env.VITE_APP_DOMAIN || 'blinxai.me',
-    CONTACT_EMAIL: 'rk8210032@gmail.com',
+    SUPPORT_EMAIL: 'support@blinxai.me',
+    ACCOUNT_EMAIL: 'account@blinxai.me',
+    OTP_EMAIL: 'noreply@blinxai.me',
 };
 
 export const getApiUrl = (path) => {

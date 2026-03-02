@@ -144,4 +144,11 @@ public class NotificationServiceImpl implements NotificationService {
             return maskPhone(identifier);
         }
     }
+
+    @Override
+    public void sendWelcomeGreeting(String identifier, String userName) {
+        if (identifier != null && isValidEmail(identifier) && emailService != null) {
+            emailService.sendGreetingEmail(identifier.trim().toLowerCase(), userName);
+        }
+    }
 }

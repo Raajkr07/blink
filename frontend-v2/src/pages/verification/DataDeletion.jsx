@@ -1,4 +1,5 @@
 import { LegalLayout } from '../../components/layout';
+import { env } from '../../config/env';
 
 const Section = ({ icon, title, children }) => (
     <section>
@@ -24,7 +25,7 @@ const DataDeletion = () => (
             <p className="text-[15px] leading-[1.8] text-[var(--color-gray-400)]">
                 At <Highlight>Blinx AI Assistant</Highlight>, we believe you should have full control
                 over your personal data at all times. Since this is a <Highlight>college academic
-                project</Highlight>, we have no reason to retain your data beyond what is needed to
+                    project</Highlight>, we have no reason to retain your data beyond what is needed to
                 provide the service. If you wish to have your data removed, we are more than happy to
                 assist.
             </p>
@@ -68,8 +69,8 @@ const DataDeletion = () => (
                 </p>
                 <p className="text-[14px]">
                     Write to us at{' '}
-                    <a href="mailto:rk8210032@gmail.com" className="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors font-medium">
-                        rk8210032@gmail.com
+                    <a href={`mailto:${env.ACCOUNT_EMAIL}`} className="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors font-medium">
+                        {env.ACCOUNT_EMAIL}
                     </a>{' '}
                     with the subject line <Highlight>"Data Deletion Request"</Highlight>. Please include
                     the email address or phone number associated with your Blinx AI account so we can
@@ -227,8 +228,8 @@ const DataDeletion = () => (
                 </p>
                 <p className="text-[14px] mt-1">
                     <Highlight>Email</Highlight> —{' '}
-                    <a href="mailto:rk8210032@gmail.com" className="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors">
-                        rk8210032@gmail.com
+                    <a href={`mailto:${env.ACCOUNT_EMAIL}`} className="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors">
+                        {env.ACCOUNT_EMAIL}
                     </a>
                 </p>
                 <p className="text-[14px] mt-1">
@@ -239,7 +240,6 @@ const DataDeletion = () => (
                 </p>
             </div>
         </Section>
-
     </LegalLayout>
 );
 

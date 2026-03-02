@@ -1,6 +1,6 @@
 spring:
   application:
-    name: blinx-ai-chat-service
+    name: blinxAI
 
   # MEMORY FIX: Removed lazy-initialization. With lazy-init, beans are created
   # on-demand which causes gradual Metaspace/classloader growth over days as new
@@ -35,8 +35,10 @@ spring:
       api-key: ${BREVO_API_KEY}
       api-url: ${BREVO_API_URL}
     sender:
-      email: ${BREVO_SENDER_EMAIL}
-      name: ${BREVO_SENDER_NAME}
+      email: ${BREVO_SENDER_EMAIL:noreply@blinxai.me}
+      support-email: ${BREVO_SUPPORT_EMAIL:support@blinxai.me}
+      account-email: ${BREVO_ACCOUNT_EMAIL:account@blinxai.me}
+      name: ${BREVO_SENDER_NAME:BlinxAI}
 
 management:
   endpoints:
@@ -59,9 +61,9 @@ management:
       sla:
         http.server.requests: 50ms,100ms,200ms,500ms,1s,5s
     tags:
-      application: blinx-chat-service
+      application: blinxAI
       env: ${DD_ENV:prod}
-      service: ${DD_SERVICE:blinx-chat-service}
+      service: ${DD_SERVICE:blinxAI}
       version: ${DD_VERSION:0.0.1}
   statsd:
     metrics:

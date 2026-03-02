@@ -37,6 +37,15 @@ public class EmailServiceImpl implements EmailService {
     @Value("${spring.mail.sender.name}")
     private String senderName;
 
+    @Value("${spring.application.name}")
+    private String appName;
+
+    @Value("${spring.mail.sender.support-email}")
+    private String supportEmail;
+
+    @Value("${spring.mail.sender.account-email}")
+    private String accountEmail;
+
     public EmailServiceImpl(RestTemplate aiRestTemplate, SpringTemplateEngine templateEngine, OAuthService oAuthService) {
         this.restTemplate = aiRestTemplate;
         this.templateEngine = templateEngine;
@@ -69,7 +78,7 @@ public class EmailServiceImpl implements EmailService {
                 log.error("Failed to process email template 'otp-mail'. Using fallback text. Error: {}", e.getMessage());
                 htmlContent = "<html><body><h2>Your OTP Code</h2><p>Your OTP code is: <strong>" + otp + "</strong></p><p>This code will expire in 10 minutes.</p></body></html>";
             }
-            sendBrevoEmail(to, "Verify Your " + appName + " Account - Your OTP Code", htmlContent);
+            sendBrevoEmail(senderEmail, to, "Verify Your " + appName + " Account - Your OTP Code", htmlContent);
         } catch (Exception e) {
             log.error("Unexpected error sending OTP email to {}: {}", to, e.getMessage(), e);
         }
@@ -84,7 +93,7 @@ public class EmailServiceImpl implements EmailService {
             context.setVariable("appName", appName);
             String htmlContent = templateEngine.process("message-email", context);
 
-            sendBrevoEmail(to, "New Message on " + appName, htmlContent);
+            sendBrevoEmail(senderEmail, to, "New Message on " + appName, htmlContent);
         } catch (Exception e) {
             log.error("Unexpected error sending new message email to {}: {}", to, e.getMessage(), e);
         }
@@ -111,7 +120,7 @@ public class EmailServiceImpl implements EmailService {
                 htmlContent = "<html><body>" + formattedBody + "</body></html>";
             }
 
-            sendBrevoEmail(to, subject, htmlContent);
+            sendBrevoEmail(supportEmail, to, subject, htmlContent);
             log.info("Custom email sent to {}", to);
         } catch (Exception e) {
             log.error("Unexpected error sending custom email to {}: {}", to, e.getMessage(), e);
@@ -169,7 +178,24 @@ public class EmailServiceImpl implements EmailService {
         return headers;
     }
 
-    private void sendBrevoEmail(String to, String subject, String htmlContent) {
+    @Async
+    @Override
+    public void sendGreetingEmail(String to, String userName) {
+        try {
+            Context context = new Context();
+            context.setVariable("userName", userName);
+            context.setVariable("appName", appName);
+            context.setVariable("supportEmail", supportEmail);
+            context.setVariable("accountEmail", accountEmail);
+            String htmlContent = templateEngine.process("greeting-mail", context);
+
+            sendBrevoEmail(senderEmail, to, "Welcome to " + appName + "!", htmlContent);
+        } catch (Exception e) {
+            log.error("Unexpected error sending greeting email to {}: {}", to, e.getMessage(), e);
+        }
+    }
+
+    private void sendBrevoEmail(String fromEmail, String to, String subject, String htmlContent) {
         if (brevoApiKey == null || brevoApiKey.isBlank()) {
             log.error("Brevo API key is not configured. Cannot send email to: {}", to);
             return;
@@ -182,7 +208,7 @@ public class EmailServiceImpl implements EmailService {
             headers.set("api-key", brevoApiKey);
 
             var request = new BrevoRequest(
-                new Sender(senderEmail, senderName),
+                new Sender(fromEmail != null ? fromEmail : senderEmail, senderName),
                 List.of(new Recipient(to)),
                 subject,
                 htmlContent

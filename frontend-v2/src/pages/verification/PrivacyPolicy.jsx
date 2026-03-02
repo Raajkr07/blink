@@ -1,4 +1,5 @@
 import { LegalLayout } from '../../components/layout';
+import { env } from '../../config/env';
 
 const Section = ({ icon, title, children }) => (
     <section>
@@ -209,8 +210,8 @@ const PrivacyPolicy = () => (
                 </p>
                 <p className="text-[14px] mt-1">
                     <Highlight>Email</Highlight> —{' '}
-                    <a href="mailto:rk8210032@gmail.com" className="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors">
-                        rk8210032@gmail.com
+                    <a href={`mailto:${env.SUPPORT_EMAIL}`} className="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors">
+                        {env.SUPPORT_EMAIL}
                     </a>
                 </p>
                 <p className="text-[14px] mt-1">
@@ -221,7 +222,6 @@ const PrivacyPolicy = () => (
                 </p>
             </div>
         </Section>
-
     </LegalLayout>
 );
 

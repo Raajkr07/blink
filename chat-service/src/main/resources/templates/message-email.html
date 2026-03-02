@@ -1,112 +1,140 @@
 <!doctype html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-    <meta name="x-apple-disable-message-reformatting" />
-    <meta http-equiv="x-ua-compatible" content="ie=edge" />
-    <title>Information from {{appName}}</title>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="'Update from ' + ${appName}">Account Update</title>
     <style>
-        @media screen and (max-width:600px) {
-            .container {
-                width: 100% !important;
-            }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000000;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            color: #ffffff;
+        }
 
-            .px {
-                padding-left: 18px !important;
-                padding-right: 18px !important;
-            }
+        .wrapper {
+            width: 100%;
+            table-layout: fixed;
+            background-color: #000000;
+            padding-bottom: 40px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 580px;
+            margin: 0 auto;
+            background-color: #0a0a0a;
+            border: 1px solid #1a1a1a;
+            border-radius: 16px;
+            margin-top: 40px;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 40px 40px 20px 40px;
+            text-align: left;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+        }
+
+        .content {
+            padding: 0 40px 40px 40px;
+            line-height: 1.6;
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 15px;
+            color: #a3a3a3;
+            margin-bottom: 24px;
+        }
+
+        .message-box {
+            background-color: #111111;
+            border: 1px solid #262626;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 30px;
+        }
+
+        .message-text {
+            font-size: 15px;
+            color: #d4d4d4;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: #ffffff;
+            color: #000000;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .footer {
+            padding: 30px 40px;
+            background-color: #050505;
+            border-top: 1px solid #1a1a1a;
+            text-align: left;
+        }
+
+        .footer-text {
+            font-size: 12px;
+            color: #525252;
+            margin-bottom: 12px;
+        }
+
+        .highlight {
+            color: #3b82f6;
         }
     </style>
 </head>
 
-<body
-    style="margin:0;padding:0;background-color:#f4f6f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
-    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
-        Account information from {{appName}}. If you need help, reply to this email or contact support.
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <div class="header">
+                <div class="logo">Blinx<span class="highlight">AI</span></div>
+            </div>
+            <div class="content">
+                <h2 th:text="'Account Update for ' + ${userName}">Account Update</h2>
+                <div class="message-box">
+                    <div class="message-text" th:text="${messageContent}">
+                        You have received a new update regarding your account.
+                    </div>
+                </div>
+                <p>If you have any questions or didn't expect this update, please contact our support team.</p>
+                <a href="https://blinxai.me" class="btn">Go to Dashboard</a>
+            </div>
+            <div class="footer">
+                <div class="footer-text">
+                    This is an automated notification from <span th:text="${appName}">Blinx AI Assistant</span>.
+                </div>
+                <div class="footer-text">
+                    Need help? Contact <a th:href="'mailto:' + ${supportEmail}" style="color: #3b82f6;"
+                        th:text="${supportEmail}">support@blinxai.me</a>
+                </div>
+                <div class="footer-text" style="margin-top: 15px;">
+                    © 2026 Blinx AI. All rights reserved.
+                </div>
+            </div>
+        </div>
     </div>
-
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-        style="background-color:#f4f6f8;">
-        <tr>
-            <td align="center" style="padding:40px 16px;">
-
-                <table role="presentation" width="520" cellpadding="0" cellspacing="0" border="0" class="container"
-                    style="width:520px;max-width:520px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.08);">
-                    <!-- Header  -->
-                    <tr>
-                        <td class="px" style="padding:22px 32px;background-color:#0b5ed7;">
-                            <div style="font-size:18px;line-height:24px;font-weight:700;color:#ffffff;">
-                                {{appName}}
-                            </div>
-                            <div style="font-size:13px;line-height:18px;color:#dbeafe;margin-top:4px;">
-                                Account update
-                            </div>
-                        </td>
-                    </tr>
-
-                    <!-- Body -->
-                    <tr>
-                        <td class="px" style="padding:28px 32px 10px 32px;">
-                            <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;">
-                                Dear {{userName}},
-                            </p>
-
-                            <p style="margin:0 0 18px 0;font-size:15px;line-height:1.6;">
-                                Please find the following information regarding your {{appName}} account:
-                            </p>
-
-                            <!-- Message block -->
-                            <div
-                                style="margin:0 0 18px 0;padding:14px 16px;background-color:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;">
-                                <p style="margin:0;font-size:15px;line-height:1.6;color:#111827;">
-                                    {{messageContent}}
-                                </p>
-                            </div>
-
-                            <p style="margin:0 0 18px 0;font-size:14px;line-height:1.6;color:#4b5563;">
-                                Should you require any clarification, please contact us. Thank you for your continued
-                                trust in {{appName}}.
-                            </p>
-
-                            <p style="margin:20px 0 0 0;font-size:14px;line-height:1.6;">
-                                Sincerely,<br />
-                                <strong>{{appName}} Team</strong>
-                            </p>
-
-                            <p style="margin:18px 0 0 0;font-size:12px;line-height:1.6;color:#6b7280;">
-                                Need help? Contact support: <a href="mailto:{{supportEmail}}"
-                                    style="color:#0b5ed7;text-decoration:underline;">{{supportEmail}}</a>
-                            </p>
-                        </td>
-                    </tr>
-
-                    <!-- Footer -->
-                    <tr>
-                        <td align="center" class="px" style="padding:18px 32px;background-color:#f8fafc;">
-                            <p style="margin:0;font-size:12px;line-height:1.6;color:#6b7280;">
-                                This is an automated message. If you reply, it may not be monitored.
-                            </p>
-
-                            <p style="margin:10px 0 0 0;font-size:12px;line-height:1.6;color:#9ca3af;">
-                                © 2026 {{appName}}. All rights reserved.
-                            </p>
-
-                            <p style="margin:10px 0 0 0;font-size:12px;line-height:1.6;color:#9ca3af;">
-                                blinxAI.me
-                                &nbsp;·&nbsp;
-                                <a href="https://blinxAI.me"
-                                    style="color:#0b5ed7;text-decoration:underline;">Unsubscribe</a>
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-
-            </td>
-        </tr>
-    </table>
 </body>
 
 </html>
