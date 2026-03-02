@@ -87,6 +87,8 @@ export function stripMarkdown(text) {
         .replace(/^#{1,6}\s+/gm, '')
         // Remove strikethrough: ~~text~~
         .replace(/~~(.+?)~~/g, '$1')
+        // Remove HTML comments: <!-- text -->
+        .replace(/<!--[\s\S]*?-->/g, '')
         // Clean up any remaining artifacts
         .trim();
 }

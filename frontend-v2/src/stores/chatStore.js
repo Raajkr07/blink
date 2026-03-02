@@ -45,11 +45,11 @@ export const useChatStore = create(
                         [tempId]: message,
                     };
                     const nextOutbox = { ...state.pendingOutbox };
-                    
+
                     if (destination && payload) {
                         nextOutbox[tempId] = { destination, payload, tempId };
                     }
-                    
+
                     return {
                         optimisticMessages: nextOptimistic,
                         pendingOutbox: nextOutbox,
@@ -60,9 +60,9 @@ export const useChatStore = create(
                 set((state) => {
                     const { [tempId]: _, ...restOpt } = state.optimisticMessages;
                     const { [tempId]: __, ...restOutbox } = state.pendingOutbox;
-                    return { 
+                    return {
                         optimisticMessages: restOpt,
-                        pendingOutbox: restOutbox 
+                        pendingOutbox: restOutbox
                     };
                 }),
 
@@ -92,10 +92,14 @@ export const useChatStore = create(
                     // If a live message matches the text of an optimistic message,
                     // we might want to clear the optimistic. For simplicity, 
                     // we just let the UI sort it out or the sender cleans it via tempId later.
+                    // Cap live messages at 50 per conversation to prevent memory leak
+                    const updated = [...current, normalizedMsg];
+                    const capped = updated.length > 50 ? updated.slice(-50) : updated;
+
                     return {
                         liveMessages: {
                             ...state.liveMessages,
-                            [conversationId]: [...current, normalizedMsg],
+                            [conversationId]: capped,
                         },
                     };
                 }),

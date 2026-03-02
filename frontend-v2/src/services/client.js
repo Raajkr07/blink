@@ -12,6 +12,31 @@ const apiClient = axios.create({
     withCredentials: true,
 });
 
+const circuitBreaker = {
+    state: 'CLOSED', // 'CLOSED' | 'OPEN' | 'HALF_OPEN'
+    failures: 0,
+    maxFailures: 3,
+    resetTimeout: 10000,
+    nextTry: 0
+};
+
+const handleNetworkFailure = () => {
+    circuitBreaker.failures++;
+    if (circuitBreaker.failures >= circuitBreaker.maxFailures && circuitBreaker.state === 'CLOSED') {
+        circuitBreaker.state = 'OPEN';
+        circuitBreaker.nextTry = Date.now() + circuitBreaker.resetTimeout;
+    }
+};
+
+const handleNetworkSuccess = () => {
+    if (circuitBreaker.state !== 'CLOSED') {
+        circuitBreaker.state = 'CLOSED';
+        circuitBreaker.failures = 0;
+    } else {
+        circuitBreaker.failures = 0;
+    }
+};
+
 const normalizeApiError = (error) => {
     const status = error?.response?.status ?? null;
     const data = error?.response?.data ?? null;
@@ -55,6 +80,17 @@ const cleanResponseData = (data) => {
 
 apiClient.interceptors.request.use(
     (config) => {
+        // Circuit Breaker check
+        if (circuitBreaker.state === 'OPEN') {
+            if (Date.now() > circuitBreaker.nextTry) {
+                // Time to test if the service is back up
+                circuitBreaker.state = 'HALF_OPEN';
+            } else {
+                // Fail fast without hitting the network to avoid browser ERR_CONNECTION_REFUSED spam
+                return Promise.reject(normalizeApiError(new Error('Backend service is currently unreachable.')));
+            }
+        }
+
         const token = storage.get(STORAGE_KEYS.ACCESS_TOKEN);
         if (token) config.headers.Authorization = `Bearer ${token}`;
         return config;
@@ -64,10 +100,24 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
     (response) => {
+        handleNetworkSuccess();
         response.data = cleanResponseData(response.data);
         return response;
     },
     async (error) => {
+        // Identify network-level errors (e.g. ERR_CONNECTION_REFUSED) where no response was received
+        if (!error.response && error.code === 'ERR_NETWORK') {
+            handleNetworkFailure();
+            // If we are in half-open state and it failed again, clamp the circuit open immediately
+            if (circuitBreaker.state === 'HALF_OPEN') {
+                circuitBreaker.state = 'OPEN';
+                circuitBreaker.nextTry = Date.now() + circuitBreaker.resetTimeout;
+            }
+        } else if (error.response) {
+            // A response was successfully received from the backend, so the server is up
+            handleNetworkSuccess();
+        }
+
         const originalRequest = error?.config;
         const status = error?.response?.status;
 

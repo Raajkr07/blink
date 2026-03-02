@@ -3,7 +3,6 @@ import { useAuthStore } from '../stores/authStore';
 import { useCallStore } from '../stores/callStore';
 import { socketService } from '../services/socketService';
 import { usePresence } from '../lib/usePresence';
-import { reportErrorOnce } from '../lib/reportError';
 
 // Calls UI can be heavy; keep it code-split so auth pages don't download it.
 const IncomingCallDialog = lazy(() =>
@@ -35,9 +34,7 @@ export function AuthenticatedShell({ Component }) {
         if (isCancelled) return;
         cleanup = initializeWebRTC(user.id);
       })
-      .catch((error) => {
-        reportErrorOnce('realtime-connection', error, 'Real-time connection failed');
-      });
+      .catch(() => { });
 
     return () => {
       isCancelled = true;

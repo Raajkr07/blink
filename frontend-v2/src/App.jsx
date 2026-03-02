@@ -11,7 +11,7 @@ import {
   notFoundRoute,
 } from './config/routes';
 import { PUBLIC_PATHS, TITLE_MAP } from './config/routeHelpers';
-import { clearReportedError, reportSuccess } from './lib/reportError';
+import { reportSuccess } from './lib/reportError';
 
 const AuthenticatedShell = lazy(() => import('./components/AuthenticatedShell').then(m => ({ default: m.AuthenticatedShell })));
 const AnimatedAppRoutes = lazy(() => import('./components/AnimatedAppRoutes').then(m => ({ default: m.AnimatedAppRoutes })));
@@ -185,7 +185,7 @@ const App = () => {
   // Auth page should not show real-time failure toasts or keep reconnect loops alive.
   useEffect(() => {
     if (location.pathname.toLowerCase().startsWith('/auth')) {
-      clearReportedError('realtime-connection');
+
       if (!isAuthenticated) {
         import('./services/socketService')
           .then((m) => m.socketService.disconnect())

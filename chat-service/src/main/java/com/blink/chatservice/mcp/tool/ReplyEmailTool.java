@@ -45,13 +45,13 @@ public class ReplyEmailTool implements McpTool {
         return Map.of(
             "type", "object",
             "properties", Map.of(
-                "threadId", Map.of("type", "string", "description", "Gmail thread ID from read_emails"),
-                "messageId", Map.of("type", "string", "description", "Gmail message ID to reply to"),
+                "threadId", Map.of("type", "string", "description", "CRITICAL: The exact Gmail threadId string from the read_emails output. DO NOT guess or use placeholders like 'some-thread-id'. If you don't have the exact ID, run read_emails again first."),
+                "messageId", Map.of("type", "string", "description", "Gmail message ID to reply to. Must be the exact raw ID."),
                 "to", Map.of("type", "string", "description", "Recipient email address"),
                 "subject", Map.of("type", "string", "description", "Subject line (usually 'Re: original subject')"),
                 "body", Map.of("type", "string", "description",
                     "Reply content in natural Indian English. Match the sender's tone — casual reply to casual email, formal to formal. Keep it brief (2-5 lines). No boilerplate. Use [Recipient Name] and [Your Name] as placeholders."),
-                "inReplyTo", Map.of("type", "string", "description", "Original Message-ID header for threading")
+                "inReplyTo", Map.of("type", "string", "description", "CRITICAL: Original MessageIdHeader raw string. Do not hallucinate.")
             ),
             "required", List.of("threadId", "to", "subject", "body")
         );
@@ -77,33 +77,36 @@ public class ReplyEmailTool implements McpTool {
 
         try {
             log.info("Replying to email thread {} for user: {} to: {}", threadId, userId, to);
-            String accessToken = oAuthService.getAccessToken(userId);
 
-            // Build RFC 2822 message with threading headers
-            StringBuilder rawMessage = new StringBuilder();
-            rawMessage.append("To: ").append(to).append("\r\n");
-            rawMessage.append("Subject: ").append(subject).append("\r\n");
-            if (inReplyTo != null && !inReplyTo.isBlank()) {
-                rawMessage.append("In-Reply-To: ").append(inReplyTo).append("\r\n");
-                rawMessage.append("References: ").append(inReplyTo).append("\r\n");
-            }
-            rawMessage.append("Content-Type: text/plain; charset=utf-8\r\n\r\n");
-            rawMessage.append(finalBody);
+            oAuthService.executeGoogleApiWithRetry(userId, accessToken -> {
+                // Build RFC 2822 message with threading headers
+                StringBuilder rawMessage = new StringBuilder();
+                rawMessage.append("To: ").append(to).append("\r\n");
+                rawMessage.append("Subject: ").append(subject).append("\r\n");
+                if (inReplyTo != null && !inReplyTo.isBlank() && !inReplyTo.equals("null")) {
+                    rawMessage.append("In-Reply-To: ").append(inReplyTo).append("\r\n");
+                    rawMessage.append("References: ").append(inReplyTo).append("\r\n");
+                }
+                rawMessage.append("Content-Type: text/plain; charset=utf-8\r\n\r\n");
+                rawMessage.append(finalBody);
 
-            String encodedMessage = Base64.getUrlEncoder().withoutPadding()
-                    .encodeToString(rawMessage.toString().getBytes(StandardCharsets.UTF_8));
+                String encodedMessage = Base64.getUrlEncoder().withoutPadding()
+                        .encodeToString(rawMessage.toString().getBytes(StandardCharsets.UTF_8));
 
-            Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("raw", encodedMessage);
-            requestBody.put("threadId", threadId);
+                Map<String, Object> requestBody = new HashMap<>();
+                requestBody.put("raw", encodedMessage);
+                requestBody.put("threadId", threadId);
 
-            restClient.post()
-                    .uri("https://www.googleapis.com/gmail/v1/users/me/messages/send")
-                    .header("Authorization", "Bearer " + accessToken)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(requestBody)
-                    .retrieve()
-                    .toBodilessEntity();
+                restClient.post()
+                        .uri("https://www.googleapis.com/gmail/v1/users/me/messages/send")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(requestBody)
+                        .retrieve()
+                        .toBodilessEntity();
+                
+                return null;
+            });
 
             log.info("Reply sent successfully to thread {} for user: {}", threadId, userId);
 

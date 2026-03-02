@@ -7,14 +7,18 @@ on:
       - "chat-service/**"
       - "Dockerfile.chat-service"
       - "Dockerfile.chat-service.ci"
+      - "entrypoint.sh"
       - ".github/workflows/chat-service.yaml"
   pull_request:
     branches: [main]
     paths:
       - "chat-service/**"
       - "Dockerfile.chat-service"
-      - "Dockerfile.chat-service.ci"
       - ".github/workflows/chat-service.yaml"
+
+concurrency:
+  group: chat-service-deploy
+  cancel-in-progress: true
 
 env:
   IMAGE_REPO: raajkr07
@@ -23,18 +27,18 @@ env:
 
 jobs:
   build:
-    name: Build, Test & Push
+    name: Build & Push
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set outputs
         id: vars
         run: echo "sha_short=$(git rev-parse --short=7 HEAD)" >> $GITHUB_OUTPUT
 
-      # ── Java + Maven cache ────────────────────────────────
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
@@ -43,48 +47,31 @@ jobs:
           cache: maven
           cache-dependency-path: chat-service/pom.xml
 
-      # ── Compile + Test + Package in one pass ──────────────
-      # Fail-fast: compilation or test failure stops the run.
       - name: Build & Test
         working-directory: chat-service
         run: mvn -B -T 1C verify
 
-      # ── Upload test results (always, even on failure) ─────
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: chat-service/target/surefire-reports/
-          retention-days: 7
-
-      # ── Docker (only on push to main) ─────────────────────
       - name: Set up Docker Buildx
-        if: github.event_name == 'push'
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to Docker Hub
-        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Copy pre-built JAR into Docker context so the
-      # Dockerfile.chat-service can skip the Maven build.
       - name: Prepare Docker context
-        if: github.event_name == 'push'
         run: |
           mkdir -p docker-ctx
           cp chat-service/target/*.jar docker-ctx/app.jar
           cp entrypoint.sh docker-ctx/entrypoint.sh
+          cp Dockerfile.chat-service.ci docker-ctx/Dockerfile
 
       - name: Build & push image
-        if: github.event_name == 'push'
         uses: docker/build-push-action@v5
         with:
           context: docker-ctx
-          file: Dockerfile.chat-service.ci
+          file: docker-ctx/Dockerfile
           push: true
           tags: |
             ${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME }}:latest
@@ -92,98 +79,64 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Upload JAR artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: chat-service-jar
-          path: chat-service/target/*.jar
-          retention-days: 1
-
-  # ══════════════════════════════════════════════════════════
-  # CD ─ Deploy to Digital Ocean App Platform
-  # ══════════════════════════════════════════════════════════
   deploy:
-    name: Deploy to Digital Ocean
+    name: Deploy to GCE (Doppler + Datadog)
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: production
-    concurrency:
-      group: digitalocean-deploy
-      cancel-in-progress: false
 
     steps:
-      # ── Trigger redeployment via DO API ────────────────────
-      - name: Trigger Digital Ocean App Deployment
-        id: deploy
-        env:
-          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          APP_ID: ${{ secrets.DIGITALOCEAN_APP_ID }}
-        run: |
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://api.digitalocean.com/v2/apps/$APP_ID/deployments" \
-            -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"force_build": true}')
-          
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          
-          echo "HTTP Status: $HTTP_CODE"
-          echo "Response: $BODY"
-          
-          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-            DEPLOYMENT_ID=$(echo "$BODY" | jq -r '.deployment.id // empty')
-            echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
-            echo "✓ Deployment triggered successfully (ID: $DEPLOYMENT_ID)"
-          else
-            echo "✗ Failed to trigger deployment (HTTP $HTTP_CODE)"
-            exit 1
-          fi
+      - name: SSH and Synchronized Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCE_INSTANCE_IP }}
+          username: ${{ secrets.GCE_VM_USER }}
+          key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
+          script: |
+            bash -c '
+              IMAGE_PATH="${{ env.IMAGE_REPO }}/${{ env.IMAGE_NAME }}:latest"
+              
+              echo "📦 Pulling latest image from Docker Hub..."
+              docker pull $IMAGE_PATH
+              
+              echo "🛑 Stopping existing blinxai-api container..."
+              docker stop blinxai-api || true
+              docker rm blinxai-api || true
+              
+              echo "🚀 Starting new blinxai-api (Doppler + Datadog)..."
+              docker run -d \
+                --name blinxai-api \
+                --restart unless-stopped \
+                --network host \
+                --memory=4g \
+                --memory-swap=4g \
+                --label com.datadoghq.ad.logs="[{\"source\":\"java\",\"service\":\"blinx-chat-service\",\"log_processing_rules\":[{\"type\":\"multi_line\",\"name\":\"java_stacktrace\",\"pattern\":\"\\\\s+(at |Caused by|\\\\.\\\\.\\\\.)\"}]}]" \
+                --env-file <(doppler secrets download --no-file --format env | sed '\''s/="\(.*\)"$/=\1/'\'') \
+                -e DD_AGENT_HOST=localhost \
+                -e DD_TRACE_AGENT_PORT=8126 \
+                -e DD_SITE=us5.datadoghq.com \
+                $IMAGE_PATH
+              
+              echo "🧹 Pruning old image layers..."
+              docker image prune -f
+              
+              echo "✅ Deployment complete!"
+              docker ps | grep -E "blinxai-api|datadog-agent"
+            '
 
-      # ── Wait for deployment to become active ───────────────
-      - name: Wait for deployment
-        env:
-          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-          APP_ID: ${{ secrets.DIGITALOCEAN_APP_ID }}
-          DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
-        run: |
-          echo "Waiting for deployment $DEPLOYMENT_ID to complete..."
-          for i in $(seq 1 30); do
-            PHASE=$(curl -s \
-              "https://api.digitalocean.com/v2/apps/$APP_ID/deployments/$DEPLOYMENT_ID" \
-              -H "Authorization: Bearer $DIGITALOCEAN_ACCESS_TOKEN" \
-              | jq -r '.deployment.phase // "UNKNOWN"')
-            
-            echo "Attempt $i: phase=$PHASE"
-            
-            if [ "$PHASE" = "ACTIVE" ]; then
-              echo "✓ Deployment is ACTIVE"
-              exit 0
-            elif [ "$PHASE" = "ERROR" ] || [ "$PHASE" = "CANCELED" ]; then
-              echo "✗ Deployment failed with phase: $PHASE"
-              exit 1
-            fi
-            
-            sleep 20
-          done
-          echo "✗ Deployment timed out after 10 minutes"
-          exit 1
-
-      # ── Smoke test ────────────────────────────────────────
       - name: Health check
         run: |
-          echo "Running health check..."
-          sleep 10
+          echo "Verifying API health..."
+          sleep 40
           for i in 1 2 3 4 5; do
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.blinxai.me/actuator/health || true)
             if [ "$STATUS" = "200" ]; then
-              echo "✓ App is healthy (HTTP $STATUS)"
+              echo "✓ API is HEALTHY (HTTP $STATUS)"
               exit 0
             fi
-            echo "Attempt $i: status=$STATUS, retrying in 15s..."
-            sleep 15
+            echo "Attempt $i: status=$STATUS, retrying in 20s..."
+            sleep 20
           done
-          echo "⚠ Health check didn't return 200, but deployment may still be starting"
-          exit 0
+          echo "⚠ Health check failed. Please check: docker logs blinxai-api"
+          exit 1

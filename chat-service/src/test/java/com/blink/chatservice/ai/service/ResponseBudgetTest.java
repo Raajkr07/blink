@@ -25,7 +25,7 @@ class ResponseBudgetTest {
     void detailedRequest_shouldReturnExtended() {
         var tier = responseBudget.determine("give me at least 500 words about AI", false, false);
         assertEquals(ResponseBudget.Tier.EXTENDED, tier);
-        assertEquals(2000, tier.maxTokens());
+        assertEquals(6000, tier.maxTokens());
     }
 
     @Test
@@ -38,7 +38,7 @@ class ResponseBudgetTest {
     void withTools_shouldReturnDetailed() {
         var tier = responseBudget.determine("send an email to john", false, true);
         assertEquals(ResponseBudget.Tier.DETAILED, tier);
-        assertEquals(1000, tier.maxTokens());
+        assertEquals(2500, tier.maxTokens());
     }
 
     @Test
@@ -62,7 +62,7 @@ class ResponseBudgetTest {
     @Test
     void maxTokens_shorthand() {
         assertEquals(200, responseBudget.maxTokens("hi", true, false));
-        assertEquals(2000, responseBudget.maxTokens("explain detailed", false, false));
-        assertEquals(1000, responseBudget.maxTokens("search web", false, true));
+        assertEquals(6000, responseBudget.maxTokens("explain detailed", false, false));
+        assertEquals(2500, responseBudget.maxTokens("search web", false, true));
     }
 }

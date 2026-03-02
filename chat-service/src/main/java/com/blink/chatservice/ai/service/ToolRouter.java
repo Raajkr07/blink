@@ -50,19 +50,6 @@ public class ToolRouter {
         INTENT_PATTERNS = Collections.unmodifiableMap(map);
     }
 
-    // Intent → tool name mapping
-    private static final Map<Intent, Set<String>> INTENT_TOOLS;
-    static {
-        Map<Intent, Set<String>> map = new EnumMap<>(Intent.class);
-        map.put(Intent.EMAIL, Set.of("send_email", "reply_email", "read_emails"));
-        map.put(Intent.CALENDAR, Set.of("add_to_calendar", "read_calendar_events", "update_calendar_event", "delete_calendar_event"));
-        map.put(Intent.MESSAGING, Set.of("send_message", "get_or_create_conversation",
-            "view_conversation", "list_conversations", "search_user"));
-        map.put(Intent.SEARCH, Set.of("web_search", "search_user"));
-        map.put(Intent.INTELLIGENCE, Set.of("summarize_conversation", "extract_tasks", "view_conversation"));
-        map.put(Intent.FILE, Set.of("save_file"));
-        INTENT_TOOLS = Collections.unmodifiableMap(map);
-    }
 
     // Layer 1 — Expanded conversational regex
     // Covers greetings, thanks, farewells, affirmations, common abbreviations,
@@ -156,7 +143,7 @@ public class ToolRouter {
         return false;
     }
 
-    // Main entry point: return only the tools relevant to the user's message.
+    // Main entry point: Let LLM handle tool execution natively
     public List<McpTool> route(String userMessage, McpToolRegistry registry) {
         // Pure greeting/thanks → skip tools entirely (saves ~1,500 tokens)
         if (isConversational(userMessage)) {
@@ -164,31 +151,12 @@ public class ToolRouter {
             return Collections.emptyList();
         }
 
-        Set<Intent> intents = detectIntents(userMessage);
-
-        // No specific intent → fallback to all tools (safety net)
-        if (intents.isEmpty()) {
-            log.debug("No specific intent detected, sending all tools");
-            return new ArrayList<>(registry.all());
-        }
-
-        // Collect tool names from all matched intents
-        Set<String> toolNames = intents.stream()
-            .flatMap(intent -> INTENT_TOOLS.getOrDefault(intent, Collections.emptySet()).stream())
-            .collect(Collectors.toCollection(LinkedHashSet::new));
-
-        // search_user is cheap and often needed for context resolution
-        if (intents.contains(Intent.MESSAGING) || intents.contains(Intent.INTELLIGENCE)) {
-            toolNames.add("search_user");
-        }
-
-        List<McpTool> routed = toolNames.stream()
-            .map(registry::get)
-            .filter(Objects::nonNull)
-            .toList();
-
-        log.debug("Routed intents {} → {} tools: {}", intents, routed.size(), toolNames);
-        return routed;
+        // Industry standard pattern (Feb 2026):
+        // Provide all tools to the LLM and let it natively decide which ones to use.
+        // This avoids missing tools due to brittle regex-based intent routing.
+        List<McpTool> allTools = new ArrayList<>(registry.all());
+        log.debug("Routing all {} tools to the LLM", allTools.size());
+        return allTools;
     }
 
     // Levenshtein fuzzy matching (Layer 3)

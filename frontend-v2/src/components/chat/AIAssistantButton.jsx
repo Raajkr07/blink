@@ -6,7 +6,6 @@ import { useChatStore, useTabsStore } from '../../stores';
 import { Modal, Button, AILogo } from '../ui';
 import { cn } from '../../lib/utils';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
 
 // Category icons based on tool name keywords
 const getCategoryIcon = (name) => {
@@ -43,25 +42,9 @@ export function AIAssistantButton({ compact }) {
 
     const handleOpenAI = () => {
         if (aiConversation?.id) {
-            const promise = new Promise((resolve) => setTimeout(resolve, 500));
-
-            toast.promise(
-                promise,
-                {
-                    loading: 'Opening...',
-                    success: <b>Here I am, grateful for you! 💖</b>,
-                    error: <b>I am deeply sorry... all connections are lost. 🥀</b>,
-                },
-                {
-                    position: 'top-center',
-                }
-            );
-
-            promise.then(() => {
-                // Open AI conversation in its own tab
-                openTab(aiConversation);
-                setActiveConversation(aiConversation.id);
-            });
+            // Open AI conversation in its own tab
+            openTab(aiConversation);
+            setActiveConversation(aiConversation.id);
         }
     };
 

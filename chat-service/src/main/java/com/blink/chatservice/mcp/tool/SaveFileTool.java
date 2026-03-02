@@ -61,8 +61,8 @@ public class SaveFileTool implements McpTool {
             int lastSlash = Math.max(filename.lastIndexOf('/'), filename.lastIndexOf('\\'));
             if (lastSlash >= 0) filename = filename.substring(lastSlash + 1);
 
-            // Sanitize: remove any characters that aren't alphanumeric, dash, underscore, or dot
-            filename = filename.replaceAll("[^a-zA-Z0-9._-]", "_");
+            // Sanitize: remove any characters that aren't alphanumeric, dash, underscore, dot, or space
+            filename = filename.replaceAll("[^a-zA-Z0-9._\\s-]", "_");
 
             // Add default extension if missing
             if (!filename.contains(".")) filename += ".txt";
@@ -96,7 +96,8 @@ public class SaveFileTool implements McpTool {
             return Map.of(
                 "success", true,
                 "fileName", filename,
-                "message", "File '" + filename + "' is ready — check the popup to download it."
+                "message", "File '" + filename + "' is ready. IMPORTANT TO AI: A system modal has appeared for the user. DO NOT provide a manual download link in your response, just confirm that the file is ready. If saving as .txt or .json, ensure you do NOT use markdown symbols like '**' inside the content unless specifically requested.",
+                "hint", "The file is now in the user's download queue. If they asked for a specific word count (like 2000 words), ensure you used 'visit_website' to gather enough content before saving."
             );
 
         } catch (Exception e) {

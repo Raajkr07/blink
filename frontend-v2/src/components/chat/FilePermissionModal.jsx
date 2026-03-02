@@ -24,8 +24,12 @@ export function FilePermissionModal({ isOpen, onApprove, onDeny, fileInfo }) {
         setIsSaving(true);
         try {
             if (method === 'api') {
-                await chatService.saveFile(editedFileName, content);
-                toast.success('File saved');
+                const response = await chatService.saveFile(editedFileName, content);
+                if (response?.fullPath) {
+                    toast.success(`File saved to Desktop:\n${response.fullPath}`, { duration: 5000 });
+                } else {
+                    toast.success('File saved to Desktop');
+                }
                 onApprove();
             } else if ('showSaveFilePicker' in window) {
                 const handle = await window.showSaveFilePicker({

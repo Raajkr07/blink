@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDebouncedCallback } from 'use-debounce';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { chatService, userService } from '../../services';
 import { useChatStore, useTabsStore } from '../../stores';
@@ -14,8 +15,7 @@ export function NewChatModal({ open, onOpenChange }) {
     const { openTab } = useTabsStore();
     const queryClient = useQueryClient();
 
-    const handleSearch = async (query) => {
-        setSearchQuery(query);
+    const debouncedSearch = useDebouncedCallback(async (query) => {
         if (query.trim().length < 2) {
             setSearchResults([]);
             return;
@@ -31,6 +31,11 @@ export function NewChatModal({ open, onOpenChange }) {
         } finally {
             setIsSearching(false);
         }
+    }, 500);
+
+    const handleSearch = (query) => {
+        setSearchQuery(query);
+        debouncedSearch(query);
     };
 
     const createChatMutation = useMutation({

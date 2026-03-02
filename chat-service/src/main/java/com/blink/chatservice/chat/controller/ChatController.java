@@ -1,9 +1,11 @@
 package com.blink.chatservice.chat.controller;
 
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
+import com.blink.chatservice.chat.service.FileSystemService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -36,6 +38,7 @@ public class ChatController {
 
     private final ChatService chatService;
     private final EmailService emailService;
+    private final FileSystemService fileSystemService;
 
     @PostMapping("/direct")
     public ResponseEntity<Conversation> createDirect(Authentication auth, @RequestBody DirectChatRequest request) {
@@ -90,14 +93,22 @@ public class ChatController {
             return ResponseEntity.badRequest().body("Filename is required");
         }
 
-        String filename = request.fileName().trim();
-        if (!filename.contains(".")) filename += ".txt";
-
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "fileName", filename,
-                "content", request.content() != null ? request.content() : ""
-        ));
+        try {
+            String content = request.content() != null ? request.content() : "";
+            Path savedPath = fileSystemService.saveToDesktop(request.fileName().trim(), content);
+            
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "fileName", savedPath.getFileName().toString(),
+                    "fullPath", savedPath.toString(),
+                    "message", "File saved successfully to Desktop"
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of(
+                    "success", false,
+                    "message", "Could not save file: " + e.getMessage()
+            ));
+        }
     }
 
     @PostMapping("/send-email")
@@ -105,14 +116,6 @@ public class ChatController {
         if (request.to() == null || request.to().isBlank()) return ResponseEntity.badRequest().body("Recipient is required");
         
         emailService.sendUserEmail(auth.getName(), request.to().trim(), request.subject() != null ? request.subject() : "Message from BlinxAI", request.body() != null ? request.body() : "");
-        
-        if (request.conversationId() != null && !request.conversationId().isBlank()) {
-            try {
-                chatService.sendMessage(request.conversationId(), "ai-assistant", "✅ Email sent successfully to " + request.to());
-            } catch (Exception e) {
-                // Ignore if bot is not a participant or other chat error
-            }
-        }
         
         return ResponseEntity.ok(Map.of("success", true));
     }

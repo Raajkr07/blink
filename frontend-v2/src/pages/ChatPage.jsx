@@ -1,6 +1,5 @@
 import { useState, lazy, Suspense, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { reportErrorOnce } from '../lib/reportError';
 import { useAuthStore, useChatStore, useTabsStore, useUIStore } from '../stores';
 import { socketService } from '../services/socketService';
 import { cn } from '../lib/utils';
@@ -53,55 +52,49 @@ const ChatPage = () => {
         if (!user?.id) return;
 
         const initSocket = async () => {
-            try {
-                // We initiate connection but don't toast on first failure 
-                // because socketService has internal auto-reconnect logic.
-                await socketService.connect();
-                if (isCancelled) return;
+            if (!user?.id) return;
 
-                sub = socketService.subscribe(`/topic/user/${user.id}/actions`, (message) => {
-                    const payload = message.payload || message;
-                    if (message.type === 'SAVE_FILE_REQUEST' || (message.fileName && message.content)) {
-                        openModal('filePermission', payload);
-                    } else if (message.type === 'SEND_EMAIL_REQUEST') {
-                        if (payload.error) {
-                            toast.error('Email failed');
-                        } else {
-                            toast.success('Email sent successfully! 📧');
-                        }
-                        openModal('emailPreview', payload);
-                    } else if (message.type === 'REPLY_EMAIL') {
-                        if (payload.error) {
-                            toast.error('Reply failed');
-                        } else {
-                            toast.success('Reply sent! 📧');
-                        }
-                        openModal('emailPreview', payload);
-                    } else if (message.type === 'ADD_TO_CALENDAR_REQUEST') {
-                        if (payload.error) {
-                            toast.error('Calendar sync failed');
-                        } else {
-                            toast.success('Event added to calendar! 📅');
-                        }
-                        openModal('calendarPreview', payload);
-                    } else if (message.type === 'UPDATE_CALENDAR_EVENT') {
-                        if (payload.error) {
-                            toast.error('Calendar update failed');
-                        } else {
-                            toast.success('Calendar event updated! 📅');
-                        }
-                        openModal('calendarPreview', payload);
-                    } else if (message.type === 'OPEN_URL') {
-                        if (payload && payload.url) {
-                            window.open(payload.url, '_blank', 'noopener,noreferrer');
-                        }
+            // Initiate connection, but do not block subscription registration
+            // so we don't lose the subscriptions if the server is temporarily offline
+            socketService.connect().catch(() => { });
+
+            if (isCancelled) return;
+
+            sub = socketService.subscribe(`/topic/user/${user.id}/actions`, (message) => {
+                const payload = message.payload || message;
+                if (message.type === 'SAVE_FILE_REQUEST' || (message.fileName && message.content)) {
+                    openModal('filePermission', payload);
+                } else if (message.type === 'SEND_EMAIL_REQUEST') {
+                    if (payload.error) {
+                        toast.error('Email failed');
                     }
-                });
-            } catch (error) {
-                if (!isCancelled) {
-                    reportErrorOnce('chat-connect', error, 'Connecting to server failed');
+                    openModal('emailPreview', payload);
+                } else if (message.type === 'REPLY_EMAIL_REQUEST' || message.type === 'REPLY_EMAIL') {
+                    if (payload.error) {
+                        toast.error('Reply failed');
+                    } else {
+                        toast.success('Reply sent! 📧');
+                    }
+                } else if (message.type === 'ADD_TO_CALENDAR_REQUEST') {
+                    if (payload.error) {
+                        toast.error('Calendar sync failed');
+                    } else {
+                        toast.success('Event added to calendar! 📅');
+                    }
+                    openModal('calendarPreview', payload);
+                } else if (message.type === 'UPDATE_CALENDAR_EVENT') {
+                    if (payload.error) {
+                        toast.error('Calendar update failed');
+                    } else {
+                        toast.success('Calendar event updated! 📅');
+                    }
+                    openModal('calendarPreview', payload);
+                } else if (message.type === 'OPEN_URL') {
+                    if (payload && payload.url) {
+                        window.open(payload.url, '_blank', 'noopener,noreferrer');
+                    }
                 }
-            }
+            });
         };
 
         initSocket();

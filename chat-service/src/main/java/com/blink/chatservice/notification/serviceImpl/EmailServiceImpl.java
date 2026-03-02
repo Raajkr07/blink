@@ -118,28 +118,29 @@ public class EmailServiceImpl implements EmailService {
         }
     }
 
-    @Async
     @Override
     public void sendUserEmail(String userId, String to, String subject, String body) {
         try {
             log.info("Attempting to send Gmail for user: {} to: {}", userId, to);
-            String accessToken = oAuthService.getAccessToken(userId);
 
-            // Construct RFC 2822 message
-            String rawMessage = "To: " + to + "\r\n" +
-                                "Subject: " + subject + "\r\n" +
-                                "Content-Type: text/plain; charset=utf-8\r\n\r\n" +
-                                body;
+            oAuthService.executeGoogleApiWithRetry(userId, accessToken -> {
+                // Construct RFC 2822 message
+                String rawMessage = "To: " + to + "\r\n" +
+                                    "Subject: " + subject + "\r\n" +
+                                    "Content-Type: text/plain; charset=utf-8\r\n\r\n" +
+                                    body;
 
-            String encodedMessage = Base64.getUrlEncoder().withoutPadding().encodeToString(rawMessage.getBytes(StandardCharsets.UTF_8));
+                String encodedMessage = Base64.getUrlEncoder().withoutPadding().encodeToString(rawMessage.getBytes(StandardCharsets.UTF_8));
 
-            Map<String, String> requestBody = Map.of("raw", encodedMessage);
+                Map<String, String> requestBody = Map.of("raw", encodedMessage);
 
-            restTemplate.postForEntity(
-                    "https://www.googleapis.com/gmail/v1/users/me/messages/send",
-                    new HttpEntity<>(requestBody, createGmailHeaders(accessToken)),
-                    String.class
-            );
+                restTemplate.postForEntity(
+                        "https://www.googleapis.com/gmail/v1/users/me/messages/send",
+                        new HttpEntity<>(requestBody, createGmailHeaders(accessToken)),
+                        String.class
+                );
+                return null;
+            });
 
             log.info("Email successfully sent via Gmail API for user: {}", userId);
         } catch (IllegalArgumentException e) {

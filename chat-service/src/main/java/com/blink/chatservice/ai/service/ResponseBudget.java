@@ -13,9 +13,9 @@ public class ResponseBudget {
         // Normal chat, short Q&A, capability questions
         STANDARD(500),
         // Tool-calling responses, summaries, web search results
-        DETAILED(1000),
-        // User explicitly asked for long/detailed output
-        EXTENDED(2000);
+        DETAILED(2500),
+        // User explicitly asked for long/detailed output (e.g. 2000+ words)
+        EXTENDED(6000);
 
         private final int maxTokens;
 

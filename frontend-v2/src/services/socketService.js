@@ -2,7 +2,7 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { env } from '../config/env';
 import { storage, STORAGE_KEYS } from '../lib/storage';
-import { hasReportedError, reportErrorOnce, reportSuccess, resetReportedError } from '../lib/reportError';
+import { reportErrorOnce } from '../lib/reportError';
 import { useSocketStore } from '../stores/socketStore';
 
 class SocketService {
@@ -19,6 +19,7 @@ class SocketService {
         this._maxDelay = 30000;       // 30 s cap
         this._intentionalDisconnect = false;
         this._pausedByPageLifecycle = false;
+        this._lastHiddenAt = 0;
 
         // Pending subscriptions — re-subscribed automatically on reconnect
         this._subscriptions = new Map();  // topic -> { callback, stompSub }
@@ -52,15 +53,16 @@ class SocketService {
     // ─── Public API ──────────────────────────────────────────────────
 
     connect() {
-        if (this.connected && this.client?.connected) return Promise.resolve();
-        if (this.connectionPromise) return this.connectionPromise;
+        if (this.connectionPromise) {
+            // If already waiting defensively, don't disrupt timer mechanics!
+            return this.connectionPromise;
+        }
 
         this._intentionalDisconnect = false;
         useSocketStore.getState().setStatus('connecting');
 
         this.connectionPromise = new Promise((resolve, reject) => {
-            // Store reject so we can call it from onWebSocketClose/onDisconnect
-            // to prevent orphaned promises that hang forever.
+            this._pendingResolve = resolve;
             this._pendingReject = reject;
 
             const token = storage.get(STORAGE_KEYS.ACCESS_TOKEN);
@@ -71,20 +73,16 @@ class SocketService {
                 return reject(new Error('No auth token'));
             }
 
-            // Use SockJS so we can fall back to HTTP transports in environments
-            // where WebSocket upgrades are blocked/misconfigured in production.
-            // env.WS_URL is expected to be ws(s)://.../ws by default.
+            // Use SockJS so we can fall back to HTTP transports
             let socketUrl = env.WS_URL.replace(/^http(s)?:\/\//, 'ws$1://');
             if (typeof window !== 'undefined' && window.location.protocol === 'https:' && socketUrl.startsWith('ws:')) {
                 socketUrl = socketUrl.replace('ws:', 'wss:');
             }
 
-            // SockJS expects an http(s) URL, not ws(s).
             const sockJsUrl = socketUrl
                 .replace(/^wss:\/\//, 'https://')
                 .replace(/^ws:\/\//, 'http://');
 
-            // Tear down any stale client
             if (this.client) {
                 try {
                     this.client.deactivate();
@@ -99,45 +97,41 @@ class SocketService {
 
                 heartbeatOutgoing: this._heartbeatOutgoing,
                 heartbeatIncoming: this._heartbeatIncoming,
+                // Optional to use inner StompJS backoff, but we have our own jitter/exponential backoff
+                reconnectDelay: 0,
 
                 onConnect: () => {
                     this.connected = true;
-                    this._pendingReject = null;
                     useSocketStore.getState().setStatus('connected');
                     this._reconnectAttempts = 0;
                     this._clearReconnectTimer();
 
-                    // If we previously surfaced a real-time failure, convert it into a success toast.
-                    // Use the same toast id so it updates in-place, then reset the flag so future outages can toast again.
-                    if (hasReportedError('realtime-connection')) {
-                        reportSuccess('realtime-connection', 'Real-time connection restored');
-                        resetReportedError('realtime-connection');
+                    // Fulfill the primary promise
+                    if (this._pendingResolve) {
+                        this._pendingResolve();
+                        this._pendingResolve = null;
+                        this._pendingReject = null;
+                        // DO NOT set connectionPromise = null; keep it resolved
                     }
 
-                    // Re-subscribe all pending topics
                     this._resubscribeAll();
-
-                    resolve();
                 },
 
                 onDisconnect: () => {
                     this.connected = false;
-                    this.connectionPromise = null;
-                    // Reject any pending connect() callers so they don't hang forever
-                    if (this._pendingReject) {
-                        this._pendingReject(new Error('Socket disconnected'));
-                        this._pendingReject = null;
-                    }
                     if (!this._intentionalDisconnect) {
                         const stillAuthed = !!storage.get(STORAGE_KEYS.ACCESS_TOKEN);
                         if (!stillAuthed) {
                             useSocketStore.getState().setStatus('disconnected');
+                            this._failPromises(new Error('Auth token lost'));
                             return;
                         }
                         useSocketStore.getState().setStatus('error');
                         this._scheduleReconnect();
                     } else {
                         useSocketStore.getState().setStatus('disconnected');
+                        this._failPromises(new Error('Intentional disconnect'));
+                        this.connectionPromise = null;
                     }
                 },
 
@@ -145,44 +139,36 @@ class SocketService {
                     this.connected = false;
                     const stillAuthed = !!storage.get(STORAGE_KEYS.ACCESS_TOKEN);
                     useSocketStore.getState().setStatus(stillAuthed ? 'error' : 'disconnected');
-                    this.connectionPromise = null;
-                    reject(frame);
                     if (!this._intentionalDisconnect) {
                         if (stillAuthed) {
                             this._scheduleReconnect();
+                        } else {
+                            this._failPromises(new Error('Auth token lost'));
                         }
+                    } else {
+                        this._failPromises(frame);
+                        this.connectionPromise = null;
                     }
                 },
 
-                onWebSocketClose: (event) => {
+                onWebSocketClose: () => {
                     this.connected = false;
-                    this.connectionPromise = null;
-                    // Reject any pending connect() callers so they don't hang forever
-                    if (this._pendingReject) {
-                        this._pendingReject(new Error('WebSocket closed'));
-                        this._pendingReject = null;
-                    }
                     if (!this._intentionalDisconnect) {
                         const stillAuthed = !!storage.get(STORAGE_KEYS.ACCESS_TOKEN);
                         if (!stillAuthed) {
                             useSocketStore.getState().setStatus('disconnected');
+                            this._failPromises(new Error('Auth token lost'));
                             return;
                         }
-                        // Keep 'error' or 'reconnecting' status instead of hiding/disconnected
-                        // If we are already in error or reconnecting, don't revert to disconnected
                         const currentStatus = useSocketStore.getState().status;
                         if (currentStatus !== 'reconnecting') {
                             useSocketStore.getState().setStatus('error');
                         }
-
-                        // Helpful breadcrumb for production debugging
-                        if (event?.code) {
-                            console.warn('WebSocket closed', { code: event.code, reason: event.reason });
-                        }
-
                         this._scheduleReconnect();
                     } else {
                         useSocketStore.getState().setStatus('disconnected');
+                        this._failPromises(new Error('Intentional disconnect'));
+                        this.connectionPromise = null;
                     }
                 },
 
@@ -260,7 +246,13 @@ class SocketService {
         }
     }
 
-    // ─── Internal helpers ────────────────────────────────────────────
+    _failPromises(error) {
+        if (this._pendingReject) {
+            this._pendingReject(error);
+            this._pendingReject = null;
+            this._pendingResolve = null;
+        }
+    }
 
     _doSubscribe(topic, callback) {
         if (!this.client?.connected) return null;
@@ -313,6 +305,7 @@ class SocketService {
             this._maxDelay
         );
 
+        // Wait using exponential backoff instead of failing quickly
         this._reconnectTimer = setTimeout(() => {
             this._reconnectTimer = null;
             if (!this._intentionalDisconnect && !this.connected) {
@@ -321,9 +314,18 @@ class SocketService {
                     return;
                 }
                 useSocketStore.getState().setStatus('reconnecting');
-                this.connect().catch((error) => {
-                    reportErrorOnce('realtime-connection', error, 'Real-time connection failed');
-                });
+
+                // Manually trigger the client to reactivate since we handle timers
+                if (this.client) {
+                    try {
+                        this.client.activate();
+                    } catch {
+                        // Suppress log spam
+                    }
+                } else {
+                    this.connectionPromise = null;
+                    this.connect().catch(() => { });
+                }
             }
         }, delay);
     }
@@ -339,13 +341,31 @@ class SocketService {
     // check connection health and reconnect if needed.
     _handleVisibilityChange() {
         if (document.visibilityState === 'visible') {
-            if (!this.connected || !this.client?.connected) {
+            const timeSuspended = Date.now() - (this._lastHiddenAt || Date.now());
+
+            // If we are not connected, or the tab was hidden for > 15s (which pauses JS and breaks heartbeats)
+            // we forcefully clear state, destroy zombie clients, and reconnect to ensure snapiness.
+            if (!this.connected || !this.client?.connected || timeSuspended > 15000) {
                 this._clearReconnectTimer();
                 this._reconnectAttempts = 0; // reset back-off since user is back
-                this.connect().catch((error) => {
-                    reportErrorOnce('realtime-connection', error, 'Real-time connection failed');
-                });
+
+                // Break out of any stuck promises caused by frozen network requests
+                this._failPromises(new Error('Visibility change reset'));
+                this.connectionPromise = null;
+
+                if (this.client) {
+                    try {
+                        this.client.deactivate();
+                    } catch {
+                        void 0; // Silent cleanup
+                    }
+                }
+
+                this.connect().catch(() => { });
             }
+        } else {
+            // Track when the tab went to the background
+            this._lastHiddenAt = Date.now();
         }
     }
 
@@ -354,9 +374,20 @@ class SocketService {
         if (!this.connected || !this.client?.connected) {
             this._clearReconnectTimer();
             this._reconnectAttempts = 0;
-            this.connect().catch((error) => {
-                reportErrorOnce('realtime-connection', error, 'Real-time connection failed');
-            });
+
+            // Fail hanging promises from the offline period
+            this._failPromises(new Error('Network online reset'));
+            this.connectionPromise = null;
+
+            if (this.client) {
+                try {
+                    this.client.deactivate();
+                } catch {
+                    void 0; // Silent cleanup
+                }
+            }
+
+            this.connect().catch(() => { });
         }
     }
 
@@ -387,11 +418,13 @@ class SocketService {
         this._intentionalDisconnect = false;
         this._reconnectAttempts = 0;
 
+        // Clean slate for BFCache restore
+        this._failPromises(new Error('Page show reset'));
+        this.connectionPromise = null;
+
         // Only reconnect if still authenticated.
         if (storage.get(STORAGE_KEYS.ACCESS_TOKEN)) {
-            this.connect().catch((error) => {
-                reportErrorOnce('realtime-connection', error, 'Real-time connection failed');
-            });
+            this.connect().catch(() => { });
         } else {
             useSocketStore.getState().setStatus('disconnected');
         }

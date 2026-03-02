@@ -66,6 +66,12 @@ public class WebSearchTool implements McpTool {
                                 "description", "What to search for — keep it specific for better results",
                                 "maxLength", MAX_QUERY_LENGTH
                         ),
+                        "type", Map.of(
+                                "type", "string",
+                                "description", "search (general) or news (recent articles)",
+                                "enum", List.of("search", "news"),
+                                "default", "search"
+                        ),
                         "maxResults", Map.of(
                                 "type", "integer",
                                 "description", "Maximum results (default: 5, max: 10)",
@@ -83,23 +89,28 @@ public class WebSearchTool implements McpTool {
         try {
             String query = validateQuery(args.get("query"));
             Integer maxResults = validateMaxResults(args.get("maxResults"));
+            String searchType = (args.get("type") != null) ? args.get("type").toString() : "search";
+            if (query.toLowerCase().contains("news") || query.toLowerCase().contains("latest")) {
+                searchType = "news";
+            }
             
             if (isCircuitOpen()) {
                 log.warn("Web search circuit breaker open. Returning fallback for: {}", query);
                 return createFallbackResponse(query);
             }
             
-            CachedResult cached = getFromCache(query);
+            String cacheKey = searchType + ":" + query;
+            CachedResult cached = getFromCache(cacheKey);
             if (cached != null) {
-                return createSuccessResponse(query, cached.results);
+                return createSuccessResponse(query, cached.results, searchType);
             }
             
-            var results = performSearch(query, maxResults);
+            var results = performSearch(query, maxResults, searchType);
             
-            putInCache(query, results);
+            putInCache(cacheKey, results);
             consecutiveFailures.set(0);
             
-            return createSuccessResponse(query, results);
+            return createSuccessResponse(query, results, searchType);
             
         } catch (Exception e) {
             log.error("Web search failed: {}", e.getMessage());
@@ -135,8 +146,11 @@ public class WebSearchTool implements McpTool {
         }
     }
 
-    private List<Map<String, Object>> performSearch(String query, int maxResults) throws Exception {
+    private List<Map<String, Object>> performSearch(String query, int maxResults, String type) throws Exception {
         if (serperApiKey != null && !serperApiKey.trim().isEmpty()) {
+            if ("news".equalsIgnoreCase(type)) {
+                return searchNewsWithSerper(query, maxResults);
+            }
             return searchWithSerper(query, maxResults);
         }
         
@@ -170,6 +184,41 @@ public class WebSearchTool implements McpTool {
         }
         
         throw new RuntimeException("Serper API failed: " + response.getStatusCode());
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> searchNewsWithSerper(String query, int maxResults) throws Exception {
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("q", query);
+        requestBody.put("num", Math.min(maxResults * 2, 20)); // Search more to filter better
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-API-KEY", serperApiKey);
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        
+        HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(requestBody), headers);
+        
+        ResponseEntity<String> response = restTemplate.postForEntity("https://google.serper.dev/news", entity, String.class);
+        
+        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+            Map<String, Object> body = objectMapper.readValue(response.getBody(), Map.class);
+            List<Map<String, Object>> newsResults = (List<Map<String, Object>>) body.get("news");
+            List<Map<String, Object>> results = new ArrayList<>();
+            
+            if (newsResults != null) {
+                for (Map<String, Object> item : newsResults) {
+                    if (results.size() >= maxResults) break;
+                    results.add(createResult(
+                        getString(item, "title"),
+                        getString(item, "snippet"),
+                        getString(item, "link"),
+                        getString(item, "source") + " (" + getString(item, "date") + ")"
+                    ));
+                }
+            }
+            return results;
+        }
+        throw new RuntimeException("Serper News API failed");
     }
 
     @SuppressWarnings("unchecked")
@@ -270,14 +319,24 @@ public class WebSearchTool implements McpTool {
         return text.trim().replaceAll("\\s+", " ");
     }
 
-    private Map<String, Object> createSuccessResponse(String query, List<Map<String, Object>> results) {
+    private Map<String, Object> createSuccessResponse(String query, List<Map<String, Object>> results, String type) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("query", query);
         response.put("results", results);
         response.put("count", results.size());
         response.put("timestamp", Instant.now().toString());
-        response.put("hint", "Summarize the top results in 3-5 bullet points. Include source URLs as markdown links.");
+        
+        String hint = "Individually analyze the snippets below. ";
+        if ("news".equalsIgnoreCase(type)) {
+            hint += "As this is a NEWS query, you MUST provide an industry-grade intelligence summary. ";
+            hint += "If the user asked for a high word count (e.g., 2000 words), use 'visit_website' on multiple sources to aggregate enough deep detail. ";
+        }
+        hint += "Include source URLs. ";
+        hint += "If snippets are insufficient, use 'visit_website' to get full content. ";
+        hint += "When saving via 'save_file', strip all markdown symbols (like '**') if the format is .txt or .json.";
+        
+        response.put("hint", hint);
         return response;
     }
 
@@ -293,7 +352,7 @@ public class WebSearchTool implements McpTool {
                 )
         );
         
-        return createSuccessResponse(query, fallback);
+        return createSuccessResponse(query, fallback, "search");
     }
 
     private boolean isCircuitOpen() {

@@ -48,7 +48,13 @@ public class SearchUserTool implements McpTool {
 
         // Prevent overly broad searches
         String trimmed = query.trim().toLowerCase();
-        if (trimmed.equalsIgnoreCase("all") || trimmed.length() < 2) {
+        if (trimmed.equalsIgnoreCase("all") || trimmed.equalsIgnoreCase("everyone") || trimmed.equalsIgnoreCase("friends")) {
+             return Map.of("success", false,
+                "message", "Cannot search for 'all'. To list the user's friends or previous chats, please use the 'list_conversations' tool instead. If you want to search for a new user, please provide a specific name.",
+                "users", List.of());
+        }
+        
+        if (trimmed.length() < 2) {
             return Map.of("success", false,
                 "message", "Search query too short. Please provide at least 2 characters.",
                 "users", List.of());

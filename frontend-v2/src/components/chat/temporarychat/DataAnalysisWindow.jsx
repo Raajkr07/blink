@@ -435,8 +435,8 @@ export function DataAnalysisWindow({ onClose }) {
                                     key={chart.id}
                                     onClick={() => setSelectedChart(chart.id)}
                                     className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${selectedChart === chart.id
-                                            ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 shadow-[inset_0_0_10px_rgba(59,130,246,0.1)]'
-                                            : 'bg-background/60 border-border text-gray-400 hover:border-gray-500'
+                                        ? 'bg-blue-500/20 border-blue-500/50 text-blue-400 shadow-[inset_0_0_10px_rgba(59,130,246,0.1)]'
+                                        : 'bg-background/60 border-border text-gray-400 hover:border-gray-500'
                                         }`}
                                 >
                                     <span className="text-xl">{chart.icon}</span>
@@ -477,7 +477,11 @@ export function DataAnalysisWindow({ onClose }) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-4 rounded-xl border border-border bg-background/50">
                                     <p className="text-xs text-gray-500 mb-1">Rows Parsed</p>
-                                    <p className="text-xl font-bold font-mono text-blue-400">{analysisStatus.rowsParsed}</p>
+                                    <p className="text-xl font-bold font-mono text-blue-400">
+                                        {typeof analysisStatus.rowsParsed === 'number'
+                                            ? analysisStatus.rowsParsed.toLocaleString()
+                                            : analysisStatus.rowsParsed}
+                                    </p>
                                 </div>
                                 <div className="p-4 rounded-xl border border-border bg-background/50">
                                     <p className="text-xs text-gray-500 mb-1">Anomalies</p>
@@ -495,8 +499,8 @@ export function DataAnalysisWindow({ onClose }) {
                                                     key={chart.id}
                                                     onClick={() => setSelectedChart(chart.id)}
                                                     className={`px-2 py-1 rounded-lg border text-[11px] transition-all ${resolveChartType() === chart.id
-                                                            ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
-                                                            : 'bg-background/60 border-border text-gray-400 hover:border-gray-500'
+                                                        ? 'bg-blue-500/20 border-blue-500/50 text-blue-400'
+                                                        : 'bg-background/60 border-border text-gray-400 hover:border-gray-500'
                                                         }`}
                                                 >
                                                     {chart.label}

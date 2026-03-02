@@ -63,7 +63,14 @@ export const useTempViewsStore = create(
             }),
 
             // --- News Sources State ---
-            newsSources: [],
+            newsSources: [
+                {
+                    id: 'src-default-indiatv',
+                    url: 'https://www.indiatvnews.com/',
+                    alias: 'India TV',
+                    selected: true,
+                }
+            ],
 
             addNewsSource: ({ url, alias }) => set((state) => {
                 const next = (state.newsSources || []).filter((s) => (s?.url || '').trim() !== (url || '').trim());

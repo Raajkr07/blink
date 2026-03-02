@@ -12,7 +12,7 @@ public final class AiConstants {
 
     // Tool Execution Limits
     public static final int MAX_TOOL_ITERATIONS = 5;
-    public static final int TOOL_EXECUTION_TIMEOUT_SECONDS = 30;
+    public static final int TOOL_EXECUTION_TIMEOUT_SECONDS = 45;
 
     // Conversation Context
     public static final int MAX_HISTORY_MESSAGES = 20;

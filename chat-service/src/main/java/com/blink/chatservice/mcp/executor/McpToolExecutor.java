@@ -18,14 +18,14 @@ public class McpToolExecutor {
 
     private final McpToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
-    private final Executor aiToolExecutor;
+    private final Executor taskExecutor;
 
     public McpToolExecutor(McpToolRegistry toolRegistry, 
                            ObjectMapper objectMapper,
-                           @Qualifier("aiToolExecutor") Executor aiToolExecutor) {
+                           @Qualifier("taskExecutor") Executor taskExecutor) {
         this.toolRegistry = toolRegistry;
         this.objectMapper = objectMapper;
-        this.aiToolExecutor = aiToolExecutor;
+        this.taskExecutor = taskExecutor;
     }
 
     public ToolExecutionResult execute(String userId, String toolName, String argumentsJson) {
@@ -84,8 +84,13 @@ public class McpToolExecutor {
     private Object executeWithTimeout(McpTool tool, String userId, Map<String, Object> args)
             throws InterruptedException, ExecutionException, TimeoutException {
 
-        CompletableFuture<Object> future = CompletableFuture.supplyAsync(() -> tool.execute(userId, args), aiToolExecutor);
-        return future.get(AiConstants.TOOL_EXECUTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        CompletableFuture<Object> future = CompletableFuture.supplyAsync(() -> tool.execute(userId, args), taskExecutor);
+        try {
+            return future.get(AiConstants.TOOL_EXECUTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true); // Attempt to interrupt if hung or remove from queue to prevent starvation leak
+            throw e;
+        }
     }
 
     @SuppressWarnings("unchecked")

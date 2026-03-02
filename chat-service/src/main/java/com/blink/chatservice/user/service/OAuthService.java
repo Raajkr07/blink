@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.nio.charset.StandardCharsets;
@@ -32,6 +33,7 @@ import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 @Service
 public class OAuthService {
@@ -277,6 +279,23 @@ public class OAuthService {
         }
 
         return encryptor.decrypt(credential.getAccessToken());
+    }
+
+    public <T> T executeGoogleApiWithRetry(String userId, Function<String, T> apiCall) {
+        String token = getAccessToken(userId);
+        try {
+            return apiCall.apply(token);
+        } catch (HttpClientErrorException.Unauthorized e) {
+            log.warn("Google API returned 401 Unauthorized for user {}. Forcing transparent transparent token refresh and retrying...", userId);
+            try {
+                refreshCredential(userId);
+                String newToken = getAccessToken(userId);
+                return apiCall.apply(newToken);
+            } catch (Exception retryEx) {
+                log.error("Transparent OAuth retry also failed for user {}: {}", userId, retryEx.getMessage());
+                throw retryEx;
+            }
+        }
     }
 
     public void revokeCredential(String userId) {

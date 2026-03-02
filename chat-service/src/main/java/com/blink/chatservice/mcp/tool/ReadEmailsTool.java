@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.http.MediaType;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.*;
@@ -34,7 +35,7 @@ public class ReadEmailsTool implements McpTool {
 
     @Override
     public String description() {
-        return "Read emails from Gmail inbox by date (today/yesterday/DD-MM-YYYY) or date range. Can also search by 'query'.";
+        return "Comprehensive Gmail search. Can filter by date (today/yesterday/last_7_days), status (UNREAD, STARRED), and folder (INBOX/received, SENT, DRAFTS). Supports keyword search via 'query'.";
     }
 
     @Override
@@ -43,17 +44,17 @@ public class ReadEmailsTool implements McpTool {
             "type", "object",
             "properties", Map.of(
                 "dateFilter", Map.of("type", "string", "description",
-                    "CRITICAL: ALWAYS use this for dates. Examples: 'today', 'yesterday', 'last_3_days', 'last_7_days', 'last_30_days', month name (e.g., 'march'), or a specific date in DD-MM-YYYY format (e.g., '25-02-2026'). Also accepts YYYY-MM-DD."),
+                    "Filter by time. Examples: 'today', 'yesterday', 'last_7_days', 'last_30_days', 'march', or 'DD-MM-YYYY'. Use 'all_time' to search without date restrictions. CRITICAL: If the user asks for 'last 5 emails', do NOT use 'last_5_days' — just set maxResults to 5 and use 'all_time'."),
                 "startDate", Map.of("type", "string", "description",
-                    "Start date for range filter (DD-MM-YYYY)."),
+                    "Start date (DD-MM-YYYY)."),
                 "endDate", Map.of("type", "string", "description",
-                    "End date for range filter (DD-MM-YYYY)."),
+                    "End date (DD-MM-YYYY)."),
                 "query", Map.of("type", "string", "description",
-                    "Gmail keyword search (e.g. 'from:boss@gmail.com', 'is:unread'). CRITICAL: DO NOT put dates here! Use dateFilter instead!"),
+                    "Advanced Gmail search. Examples: 'from:name@gmail.com', 'to:name@gmail.com'. For SENT, use 'label:SENT'. For RECEIVED, use 'label:INBOX'. For UNREAD, include 'is:unread'."),
                 "maxResults", Map.of("type", "integer", "description",
                     "Max emails to return (default 20, max 50)."),
                 "labelFilter", Map.of("type", "string", "description",
-                    "Label filter: INBOX, SENT, STARRED, UNREAD. Leave this empty or use 'ALL' to search everywhere (highly recommended).")
+                    "Label filter: INBOX, SENT, STARRED, UNREAD, DRAFTS. Use this to explicitly search folders.")
             ),
             "required", Collections.emptyList()
         );
@@ -78,91 +79,106 @@ public class ReadEmailsTool implements McpTool {
                 log.warn("Invalid maxResults value: {}", maxResultsObj);
             }
         }
+        final int finalMaxResults = maxResults;
 
         try {
-            String accessToken = oAuthService.getAccessToken(userId);
-            
-            String dateQuery = buildDateEpochQuery(dateFilter, startDateStr, endDateStr);
-            String gmailQuery = (dateQuery != null) ? dateQuery : "";
-            
-            if (userQuery != null && !userQuery.isBlank()) {
-                gmailQuery = gmailQuery.isEmpty() ? userQuery : gmailQuery + " " + userQuery;
-            }
-
-            // If completely empty, default to a reasonable recent window to avoid massive results
-            if (gmailQuery.isBlank()) {
-                gmailQuery = buildDateEpochQuery("last_7_days", null, null);
-            }
-
-            log.info("Reading emails for user {} with query: '{}', label: '{}', max: {}",
-                    userId, gmailQuery, labelFilter, maxResults);
-
-            // Step 1: List message IDs
-            String finalQuery = gmailQuery;
-            if (!finalQuery.isBlank()) {
-                finalQuery = finalQuery.replaceAll("after:(\\d{4})-(\\d{2})-(\\d{2})", "after:$1/$2/$3")
-                                       .replaceAll("before:(\\d{4})-(\\d{2})-(\\d{2})", "before:$1/$2/$3");
-            }
-
-            final String fQuery = finalQuery;
-            final int fMaxResults = maxResults;
-
-            String listResponse = aiRestClient.get()
-                    .uri("https://www.googleapis.com/gmail/v1/users/me/messages", uriBuilder -> {
-                        uriBuilder.queryParam("maxResults", fMaxResults);
-                        if (!fQuery.isBlank()) {
-                            uriBuilder.queryParam("q", fQuery);
-                        }
-                        if (labelFilter != null && !labelFilter.isBlank() && !labelFilter.equalsIgnoreCase("ALL")) {
-                            uriBuilder.queryParam("labelIds", labelFilter);
-                        }
-                        return uriBuilder.build();
-                    })
-                    .header("Authorization", "Bearer " + accessToken)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .retrieve()
-                    .body(String.class);
-
-            Map<String, Object> listResult = objectMapper.readValue(listResponse, Map.class);
-
-            List<Map<String, String>> messageRefs = (List<Map<String, String>>) listResult.get("messages");
-            if (messageRefs == null || messageRefs.isEmpty()) {
-                return Map.of(
-                    "success", true,
-                    "count", 0,
-                    "emails", List.of(),
-                    "message", "No emails found for the specified filter.",
-                    "query_used", gmailQuery
-                );
-            }
-
-            // Step 2: Fetch each message's details
-            List<Map<String, Object>> emails = new ArrayList<>();
-            for (Map<String, String> ref : messageRefs) {
+            return oAuthService.executeGoogleApiWithRetry(userId, accessToken -> {
                 try {
-                    Map<String, Object> emailDetail = fetchEmailDetail(accessToken, ref.get("id"));
-                    if (emailDetail != null) {
-                        emails.add(emailDetail);
+                    String dateQuery = buildDateEpochQuery(dateFilter, startDateStr, endDateStr);
+                    String gmailQuery = (dateQuery != null) ? dateQuery : "";
+                    
+                    if (userQuery != null && !userQuery.isBlank()) {
+                        gmailQuery = gmailQuery.isEmpty() ? userQuery : gmailQuery + " " + userQuery;
                     }
+
+                    // If completely empty, default to a wider window (30 days) to be more helpful,
+                    if (gmailQuery.isBlank() && (dateFilter == null || !dateFilter.equalsIgnoreCase("all_time"))) {
+                        gmailQuery = buildDateEpochQuery("last_30_days", null, null);
+                    }
+
+                    log.info("Reading emails for user {} with query: '{}', label: '{}', max: {}",
+                            userId, gmailQuery, labelFilter, finalMaxResults);
+
+                    // Step 1: List message IDs
+                    String finalQuery = gmailQuery;
+                    if (!finalQuery.isBlank()) {
+                        finalQuery = finalQuery.replaceAll("after:(\\d{4})-(\\d{2})-(\\d{2})", "after:$1/$2/$3")
+                                               .replaceAll("before:(\\d{4})-(\\d{2})-(\\d{2})", "before:$1/$2/$3");
+                    }
+
+                    final String fQuery = finalQuery;
+                    final int fMaxResults = finalMaxResults;
+
+                    StringBuilder urlBuilder = new StringBuilder("https://www.googleapis.com/gmail/v1/users/me/messages?");
+                    urlBuilder.append("maxResults=").append(fMaxResults);
+                    
+                    if (!fQuery.isBlank()) {
+                        urlBuilder.append("&q=").append(URLEncoder.encode(fQuery, StandardCharsets.UTF_8));
+                    }
+                    if (labelFilter != null && !labelFilter.isBlank() && !labelFilter.equalsIgnoreCase("ALL")) {
+                        String uppercaseLabel = labelFilter.toUpperCase().trim();
+                        urlBuilder.append("&labelIds=").append(URLEncoder.encode(uppercaseLabel, StandardCharsets.UTF_8));
+                    }
+
+                    String listResponse = aiRestClient.get()
+                            .uri(URI.create(urlBuilder.toString()))
+                            .header("Authorization", "Bearer " + accessToken)
+                            .accept(MediaType.APPLICATION_JSON)
+                            .retrieve()
+                            .body(String.class);
+
+                    Map<String, Object> listResult = objectMapper.readValue(listResponse, Map.class);
+
+                    List<Map<String, String>> messageRefs = (List<Map<String, String>>) listResult.get("messages");
+                    if (messageRefs == null || messageRefs.isEmpty()) {
+                        return Map.of(
+                            "success", true,
+                            "count", 0,
+                            "emails", List.of(),
+                            "message", "No emails found for the specified filter.",
+                            "query_used", gmailQuery
+                        );
+                    }
+
+                    // Step 2: Fetch each message's details
+                    List<Map<String, Object>> emails = new ArrayList<>();
+                    for (Map<String, String> ref : messageRefs) {
+                        try {
+                            Map<String, Object> emailDetail = fetchEmailDetail(accessToken, ref.get("id"));
+                            if (emailDetail != null) {
+                                emails.add(emailDetail);
+                            }
+                        } catch (Exception e) {
+                            log.warn("Failed to fetch email {}: {}", ref.get("id"), e.getMessage());
+                        }
+                    }
+
+                    // Sort by timestamp descending (newest first)
+                    emails.sort((a, b) -> {
+                        long tsA = ((Number) a.getOrDefault("timestamp_epoch", 0L)).longValue();
+                        long tsB = ((Number) b.getOrDefault("timestamp_epoch", 0L)).longValue();
+                        return Long.compare(tsB, tsA);
+                    });
+
+                    return Map.of(
+                        "success", true,
+                        "count", emails.size(),
+                        "emails", emails,
+                        "query_used", gmailQuery,
+                        "hint", "CRITICAL INSTRUCTION FOR SUMMARY: Present these emails using a highly readable, structured markdown layout:\n\n" +
+                                "1. 📅 **[Date and Time]**\n" +
+                                "   👤 **From**: [Sender Name/Email]\n" +
+                                "   📌 **Subject**: [Accurate Subject]\n" +
+                                "   📝 **Summary**: [Write a very simple, 1-2 sentence summary.]\n" +
+                                "   <!-- (Internal ID: [threadId] | [messageIdHeader]) -->\n\n" +
+                                "CRITICAL: You MUST include the HTML comment <!-- (Internal ID: ...) --> exactly as it appears in the data for each email. This is mandatory for trackability but will be invisible to the user. Format the list with appropriate spacing. Never output raw JSON. Always conclude by asking if the user would like to take action."
+                    );
+                } catch (org.springframework.web.client.HttpClientErrorException e) {
+                    throw e; // Rethrow to be caught by the retry logic if 401
                 } catch (Exception e) {
-                    log.warn("Failed to fetch email {}: {}", ref.get("id"), e.getMessage());
+                    throw new RuntimeException("Email fetch failed: " + e.getMessage(), e);
                 }
-            }
-
-            // Sort by timestamp descending (newest first)
-            emails.sort((a, b) -> {
-                long tsA = ((Number) a.getOrDefault("timestamp_epoch", 0L)).longValue();
-                long tsB = ((Number) b.getOrDefault("timestamp_epoch", 0L)).longValue();
-                return Long.compare(tsB, tsA);
             });
-
-            return Map.of(
-                "success", true,
-                "count", emails.size(),
-                "emails", emails,
-                "query_used", gmailQuery,
-                "hint", "When presenting this to the user, briefly summarize the emails emphasizing the sender/receiver and the core intent or intention. Do not output raw JSON. and ask for any action the user might want to take."
-            );
 
         } catch (IllegalArgumentException e) {
             // No Google credentials linked
@@ -272,7 +288,7 @@ public class ReadEmailsTool implements McpTool {
         );
 
         String response = aiRestClient.get()
-                .uri(url)
+                .uri(URI.create(url))
                 .header("Authorization", "Bearer " + accessToken)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()

@@ -29,7 +29,7 @@ export function EmailPreviewModal({ isOpen, onClose, emailInfo }) {
         setIsSending(true);
         try {
             await chatService.sendEmail(to, subject, body, activeConversationId);
-            toast.success('Email sent');
+            toast.success('Email sent successfully 📧');
             onClose();
         } catch (error) {
             void error;
@@ -82,7 +82,10 @@ export function EmailPreviewModal({ isOpen, onClose, emailInfo }) {
             <ModalFooter>
                 <Button
                     variant="ghost"
-                    onClick={onClose}
+                    onClick={() => {
+                        toast('Draft discarded', { icon: '🗑️' });
+                        onClose();
+                    }}
                     disabled={isSending}
                     className="text-xs font-medium text-[var(--color-gray-400)]"
                 >

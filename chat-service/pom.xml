@@ -173,6 +173,12 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
+        <!-- Datadog Metrics (StatsD) -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-statsd</artifactId>
+        </dependency>
+
         <!-- News feed parsing (RSS/Atom) + HTML discovery -->
         <dependency>
             <groupId>com.rometools</groupId>

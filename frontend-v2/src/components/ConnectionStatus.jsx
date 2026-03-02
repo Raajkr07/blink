@@ -83,18 +83,7 @@ export const ConnectionStatus = () => {
 
     switch (status) {
       case 'connected':
-        return {
-          label: 'Blinx AI is Ready',
-          color: 'bg-emerald-500',
-          textColor: 'text-emerald-500',
-          bgColor: 'bg-emerald-500/10',
-          borderColor: 'border-emerald-500/20',
-          icon: (
-            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          )
-        };
+        return null;
       case 'connecting':
       case 'reconnecting':
         return {

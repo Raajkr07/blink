@@ -7,7 +7,6 @@ import { useAuthStore, useChatStore } from '../../stores';
 import { Avatar, SkeletonMessage, EmptyState, NoMessagesIcon, AILogo } from '../ui';
 import { cn, formatTime, stripMarkdown } from '../../lib/utils';
 import toast from 'react-hot-toast';
-import { reportErrorOnce } from '../../lib/reportError';
 
 // ─── Date separator helper ───────────────────────────────────────────
 function getDateLabel(dateString) {
@@ -223,7 +222,7 @@ export function MessageList({ conversationId }) {
                 }
             } catch (error) {
                 if (isMounted) {
-                    reportErrorOnce('realtime-connection', error, 'Real-time connection failed');
+                    console.error('Real-time connection failed', error);
                 }
             }
         };

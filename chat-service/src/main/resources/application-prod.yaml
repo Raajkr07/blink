@@ -53,8 +53,23 @@ management:
     threaddump:
       enabled: true
   metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      sla:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,5s
     tags:
       application: blinx-chat-service
+      env: ${DD_ENV:prod}
+      service: ${DD_SERVICE:blinx-chat-service}
+      version: ${DD_VERSION:0.0.1}
+  statsd:
+    metrics:
+      export:
+        enabled: true
+        flavor: datadog
+        host: localhost
+        port: 8125
 
 # Disable Swagger in production to save ~30MB of memory
 springdoc:
@@ -74,10 +89,10 @@ server:
       min-spare: ${SERVER_TOMCAT_MIN_SPARE_THREADS}
     mbeanregistry:
       enabled: false
-    connection-timeout: 10000ms
-    max-connections: 200
-    accept-count: 50
-    keep-alive-timeout: 30000ms
+    connection-timeout: 5000ms
+    max-connections: 300
+    accept-count: 100
+    keep-alive-timeout: 20000ms
   # Enable response compression to reduce bandwidth and latency
   compression:
     enabled: true

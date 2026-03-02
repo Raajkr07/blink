@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDebounce } from 'use-debounce';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userService, chatService } from '../../services';
 import { queryKeys } from '../../lib/queryClient';
@@ -15,10 +16,12 @@ export function NewGroupModal({ open, onOpenChange }) {
     const { setActiveConversation } = useChatStore();
     const queryClient = useQueryClient();
 
+    const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
+
     const { data: searchResults, isLoading: isSearching } = useQuery({
-        queryKey: ['userSearch', searchQuery],
-        queryFn: () => userService.searchUsers(searchQuery),
-        enabled: searchQuery.length > 0 && step === 'members',
+        queryKey: ['userSearch', debouncedSearchQuery],
+        queryFn: () => userService.searchUsers(debouncedSearchQuery),
+        enabled: debouncedSearchQuery.length > 0 && step === 'members',
     });
 
     const createGroupMutation = useMutation({

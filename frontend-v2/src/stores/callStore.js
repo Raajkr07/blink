@@ -99,6 +99,13 @@ export const useCallStore = create((set, get) => ({
 
             if (['OFFER', 'ICE_CANDIDATE'].includes(signal.type)) {
                 const currentOrphans = orphanedSignals[signal.callId] || [];
+
+                // Cap orphans per callId at 10 to prevent memory leak
+                if (currentOrphans.length >= 10) return;
+
+                // Cap total tracked orphan callIds at 50 to prevent unbounded growth
+                if (!orphanedSignals[signal.callId] && Object.keys(orphanedSignals).length >= 50) return;
+
                 set({
                     orphanedSignals: {
                         ...orphanedSignals,

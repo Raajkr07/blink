@@ -1,5 +1,6 @@
 package com.blink.chatservice.ai.controller;
 
+import com.blink.chatservice.ai.service.AiAnalysisService;
 import com.blink.chatservice.ai.service.AiIncognitoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

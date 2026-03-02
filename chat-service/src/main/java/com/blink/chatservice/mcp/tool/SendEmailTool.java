@@ -67,7 +67,7 @@ public class SendEmailTool implements McpTool {
 
             return Map.of(
                 "success", true, 
-                "message", "Email preview sent to user."
+                "message", "Email preview prepared. CRITICAL: Do NOT tell the user that the email has been sent. Tell them you have prepared a draft and it is waiting for their review and confirmation."
             );
         } catch (Exception e) {
             String errMsg = e.getMessage() != null ? e.getMessage() : "Unknown error";
