@@ -24,7 +24,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final WebSocketAuthChannelInterceptor webSocketAuthChannelInterceptor;
     private final TaskScheduler heartTaskScheduler;
 
-    @Value("${app.cors.allowed-origins}")
+    @Value("${app.cors.allowed-origins:https://blinxai.me,https://www.blinxai.me,https://blinx-app.netlify.app}")
     private String allowedOriginsRaw;
 
     private String[] parseOrigins() {

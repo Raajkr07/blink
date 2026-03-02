@@ -138,10 +138,10 @@ app:
         - https://www.blinxai.me
 
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS}
-  frontend-url: ${APP_FRONTEND_URL}
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://blinxai.me,https://www.blinxai.me,https://blinx-app.netlify.app}
+  frontend-url: ${APP_FRONTEND_URL:https://blinxai.me}
   cookie:
-    domain: ${APP_COOKIE_DOMAIN}
+    domain: ${APP_COOKIE_DOMAIN:blinxai.me}
 
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}

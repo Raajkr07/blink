@@ -42,12 +42,14 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .headers(headers -> headers
-                        .frameOptions(frameOptions -> frameOptions.deny())
+                        // Disable Spring Sec default X-Frame-Options to allow cross-origin framing for SockJS.
+                        // Framing security is now strictly controlled via CSP frame-ancestors.
+                        .frameOptions(frameOptions -> frameOptions.disable())
                         .httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(31536000))
                         .contentSecurityPolicy(csp -> csp
-                                .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self';")
+                                .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' https://api.blinxai.me; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https://r2cdn.perplexity.ai; frame-ancestors 'self' https://blinxai.me https://www.blinxai.me https://blinx-app.netlify.app; connect-src 'self' ws: wss: https: https://api.blinxai.me;")
                         )
                 )
                 .authorizeHttpRequests(auth -> auth
