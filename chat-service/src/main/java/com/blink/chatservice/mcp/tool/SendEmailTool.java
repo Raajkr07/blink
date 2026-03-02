@@ -1,6 +1,7 @@
 package com.blink.chatservice.mcp.tool;
 
 import com.blink.chatservice.mcp.tool.helper.UserLookupHelper;
+import com.blink.chatservice.user.service.OAuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -16,6 +17,7 @@ public class SendEmailTool implements McpTool {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final UserLookupHelper userLookupHelper;
+    private final OAuthService oAuthService;
 
     @Override
     public String name() {
@@ -50,7 +52,19 @@ public class SendEmailTool implements McpTool {
             throw new IllegalArgumentException("Recipient is required");
         }
 
-        // Resolve name placeholders using helper
+        // 1. Verify Google Authentication (Gmail Access)
+        try {
+            oAuthService.getAccessToken(userId);
+        } catch (IllegalArgumentException e) {
+            log.warn("Gmail prepare failed: No Google credentials for user: {}", userId);
+            return Map.of(
+                "success", false,
+                "message", "You haven't linked your Google account yet. Please login with Google to send emails.",
+                "error_type", "PERMISSION_DENIED"
+            );
+        }
+
+        // 2. Resolve name placeholders using helper
         String finalBody = userLookupHelper.resolveNamePlaceholders(body, userId, to);
 
         try {

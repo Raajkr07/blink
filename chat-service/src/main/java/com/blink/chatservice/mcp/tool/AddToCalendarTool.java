@@ -126,7 +126,7 @@ public class AddToCalendarTool implements McpTool {
             // No Google credentials linked
             log.warn("No Google credentials for user {}: {}", userId, e.getMessage());
             return Map.of("success", false,
-                "message", "You don't have permission to access Google Calendar. Please link your Google account in Settings.",
+                "message", "You haven't linked your Google account yet. Please login with Google to access your calendar.",
                 "error_type", "PERMISSION_DENIED");
         } catch (Exception e) {
             String errMsg = e.getMessage() != null ? e.getMessage() : "Unknown error";
@@ -135,7 +135,7 @@ public class AddToCalendarTool implements McpTool {
             // Check for permission/auth errors from Google API
             if (CalendarToolUtils.isPermissionError(errMsg)) {
                 return Map.of("success", false,
-                    "message", "You don't have permission to create calendar events. Please re-link your Google account in Settings to grant calendar access.",
+                    "message", "You don't have permission to access your calendar. Please login with Google again to refresh access.",
                     "error_type", "PERMISSION_DENIED");
             }
 

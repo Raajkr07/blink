@@ -113,11 +113,14 @@ public class ChatController {
 
     @PostMapping("/send-email")
     public ResponseEntity<Object> sendEmail(Authentication auth, @RequestBody SendEmailRequest request) {
-        if (request.to() == null || request.to().isBlank()) return ResponseEntity.badRequest().body("Recipient is required");
+        if (request.to() == null || request.to().isBlank()) return ResponseEntity.badRequest().body(Map.of("message", "Recipient is required"));
         
-        emailService.sendUserEmail(auth.getName(), request.to().trim(), request.subject() != null ? request.subject() : "Message from BlinxAI", request.body() != null ? request.body() : "");
-        
-        return ResponseEntity.ok(Map.of("success", true));
+        try {
+            emailService.sendUserEmail(auth.getName(), request.to().trim(), request.subject() != null ? request.subject() : "Message from BlinxAI", request.body() != null ? request.body() : "");
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
     }
 }
 

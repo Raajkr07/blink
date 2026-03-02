@@ -32,8 +32,8 @@ export function EmailPreviewModal({ isOpen, onClose, emailInfo }) {
             toast.success('Email sent successfully 📧');
             onClose();
         } catch (error) {
-            void error;
-            toast.error('Failed to send');
+            const errorMsg = error.response?.data?.message || 'Failed to send';
+            toast.error(errorMsg);
         } finally {
             setIsSending(false);
         }

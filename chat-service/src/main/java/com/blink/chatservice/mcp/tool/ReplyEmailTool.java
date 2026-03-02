@@ -127,7 +127,7 @@ public class ReplyEmailTool implements McpTool {
             // No Google credentials linked
             log.warn("No Google credentials for user {}: {}", userId, e.getMessage());
             return Map.of("success", false,
-                "message", "You don't have permission to send emails. Please link your Google account in Settings to grant email access.",
+                "message", "You haven't linked your Google account yet. Please login with Google to send emails.",
                 "error_type", "PERMISSION_DENIED");
         } catch (Exception e) {
             String errMsg = e.getMessage() != null ? e.getMessage() : "Unknown error";
@@ -144,7 +144,7 @@ public class ReplyEmailTool implements McpTool {
                     )
                 ));
                 return Map.of("success", false,
-                    "message", "You don't have permission to send emails. Please re-link your Google account in Settings to grant email access.",
+                    "message", "You don't have permission to send emails. Please login with Google again to refresh access.",
                     "error_type", "PERMISSION_DENIED");
             }
 

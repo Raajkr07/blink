@@ -169,7 +169,7 @@ public class ReadCalendarEventsTool implements McpTool {
                     "success", false,
                     "count", 0,
                     "events", List.of(),
-                    "message", "Please log out and log back in with Google to refresh your permissions and access this feature.",
+                    "message", "You haven't linked your Google account yet. Please login with Google to access your calendar.",
                     "error_type", "PERMISSION_DENIED"
                 );
             }
@@ -201,14 +201,14 @@ public class ReadCalendarEventsTool implements McpTool {
             // No Google credentials linked
             log.warn("No Google credentials for user {}: {}", userId, e.getMessage());
             return Map.of("success", false,
-                "message", "Please log out and log back in with Google to grant access to your Calendar.",
+                "message", "You haven't linked your Google account yet. Please login with Google to access your calendar.",
                 "error_type", "PERMISSION_DENIED");
         } catch (Exception e) {
             String errMsg = e.getMessage() != null ? e.getMessage() : "Unknown error";
             log.error("Failed to read calendar events for user {}: {}", userId, errMsg, e);
             if (isPermissionError(errMsg)) {
                 return Map.of("success", false,
-                    "message", "Please log out and log back in with Google to refresh your permissions and access this feature.",
+                    "message", "You don't have permission to access your calendar. Please login with Google again to refresh access.",
                     "error_type", "PERMISSION_DENIED");
             }
             return Map.of("success", false, "message", "Failed to read calendar events: " + errMsg);
