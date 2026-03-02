@@ -3,11 +3,11 @@ import { API_BASE_URL } from '../config';
 const API_BASE = API_BASE_URL;
 
 // 1) Request OTP for signup/login (same endpoint for both)
-export async function requestOtp(identifier, email) {
+export async function requestOtp(identifier, intent) {
   const res = await fetch(`${API_BASE}/auth/request-otp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier, email }),
+    body: JSON.stringify({ identifier, intent }),
   });
 
   if (!res.ok) {

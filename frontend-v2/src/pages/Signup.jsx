@@ -48,13 +48,21 @@ export function Signup({ onSwitchToLogin, initialIdentifier }) {
     const requestOtpMutation = useMutation({
         mutationFn: () => {
             const normalized = identifier.trim().includes('@') ? identifier.trim().toLowerCase() : identifier.trim();
-            return authService.requestOtp(normalized);
+            return authService.requestOtp(normalized, 'signup');
         },
         onSuccess: () => {
             toast.success('OTP sent');
             setStep('otp');
         },
-        onError: () => toast.error('Failed to send OTP')
+        onError: (error) => {
+            const message = error?.response?.data?.message || error?.message;
+            if (message === 'USER_ALREADY_EXISTS') {
+                toast.error('Account already exists, Please login.');
+                onSwitchToLogin?.();
+            } else {
+                toast.error('Failed to send OTP');
+            }
+        }
     });
 
     const verifyOtpMutation = useMutation({

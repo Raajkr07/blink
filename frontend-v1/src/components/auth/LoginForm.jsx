@@ -77,12 +77,26 @@ export default function LoginForm() {
       // Use identifier as phone or email, and optionally provide email for OTP delivery
       const emailForOtp =
         useEmailAsIdentifier && validEmail ? identifier : email || undefined;
-      await requestOtp(identifier, emailForOtp);
+      await requestOtp(identifier, mode);
       setStep('otp');
       setOtp('');
       setResendTimer(60);
     } catch (err) {
-      setError(err.message || 'Failed to send OTP. Please try again.');
+      if (err.message === 'USER_NOT_FOUND') {
+        setError('Account not found. Redirecting to signup...');
+        setTimeout(() => {
+          setMode('signup');
+          setError('');
+        }, 2000);
+      } else if (err.message === 'USER_ALREADY_EXISTS') {
+        setError('Account already exists, Please login.');
+        setTimeout(() => {
+          setMode('login');
+          setError('');
+        }, 2000);
+      } else {
+        setError(err.message || 'Failed to send OTP. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -94,7 +108,7 @@ export default function LoginForm() {
     try {
       const emailForOtp =
         useEmailAsIdentifier && validEmail ? identifier : email || undefined;
-      await requestOtp(identifier, emailForOtp);
+      await requestOtp(identifier, mode);
       setResendTimer(60);
     } catch (err) {
       setError(err.message || 'Failed to resend OTP. Please try again.');

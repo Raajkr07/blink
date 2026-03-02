@@ -4,7 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 
 public class AuthDto {
     public record OtpRequest(
-            @NotBlank String identifier
+            @NotBlank String identifier,
+            String intent // "login" or "signup"
     ) {}
     public record VerifyOtpRequest(
             @NotBlank String identifier,

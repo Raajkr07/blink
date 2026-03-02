@@ -7,7 +7,7 @@ import java.util.Map;
 
 public interface UserService {
 
-    String  requestOtp(String identifier);
+    String  requestOtp(String identifier, String intent);
     boolean verifyOtp(String identifier, String otp);
     Map<String, String> signup(String identifier, String username, String avatarUrl, String bio, String email, String phone);
     Map<String, String> login(AuthDto.LoginRequest loginRequest);

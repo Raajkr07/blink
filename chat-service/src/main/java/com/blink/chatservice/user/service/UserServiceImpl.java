@@ -37,25 +37,58 @@ public class UserServiceImpl implements UserService {
     private final CacheManager cacheManager;
 
     @Override
-    public String requestOtp(String identifier) {
+    public String requestOtp(String identifier, String intent) {
         String normalized = normalizeIdentifier(identifier);
-        
-        if (isValidPhone(normalized)) {
-            userRepository.findByPhone(normalized).orElseGet(() -> {
-                User user = new User();
-                user.setPhone(normalized);
-                user.setCreatedAt(LocalDateTime.now(ZoneId.of("UTC")));
-                return userRepository.save(user);
-            });
-        } else if (isValidEmail(normalized)) {
-            userRepository.findFirstByEmail(normalized).orElseGet(() -> {
-                User user = new User();
-                user.setEmail(normalized);
-                user.setCreatedAt(LocalDateTime.now(ZoneId.of("UTC")));
-                return userRepository.save(user);
-            });
+        boolean exists = userExists(normalized);
+
+        if ("login".equalsIgnoreCase(intent)) {
+            if (!exists) {
+                throw new IllegalArgumentException("USER_NOT_FOUND");
+            }
+            // Check if profile is complete. Login only for complete profiles.
+            User user = getUserByIdentifier(normalized);
+            if (user.getUsername() == null || user.getUsername().isBlank()) {
+                throw new IllegalArgumentException("USER_NOT_FOUND");
+            }
+        } else if ("signup".equalsIgnoreCase(intent)) {
+            if (exists) {
+                // Check if profile is complete. If so, they should login.
+                User existingUser = getUserByIdentifier(normalized);
+                if (existingUser.getUsername() != null && !existingUser.getUsername().isBlank()) {
+                    throw new IllegalArgumentException("USER_ALREADY_EXISTS");
+                }
+                // If profile is incomplete, let them continue with signup
+            } else {
+                // Create "pre-signup" user
+                if (isValidPhone(normalized)) {
+                    User user = new User();
+                    user.setPhone(normalized);
+                    user.setCreatedAt(LocalDateTime.now(ZoneId.of("UTC")));
+                    userRepository.save(user);
+                } else if (isValidEmail(normalized)) {
+                    User user = new User();
+                    user.setEmail(normalized);
+                    user.setCreatedAt(LocalDateTime.now(ZoneId.of("UTC")));
+                    userRepository.save(user);
+                } else {
+                    throw new IllegalArgumentException("Invalid identifier format. Please provide a valid email or 10-digit mobile number.");
+                }
+            }
         } else {
-            throw new IllegalArgumentException("Invalid identifier format. Please provide a valid email or 10-digit mobile number.");
+            // Default behavior - create if not exists
+            if (!exists) {
+                if (isValidPhone(normalized)) {
+                    User user = new User();
+                    user.setPhone(normalized);
+                    user.setCreatedAt(LocalDateTime.now(ZoneId.of("UTC")));
+                    userRepository.save(user);
+                } else if (isValidEmail(normalized)) {
+                    User user = new User();
+                    user.setEmail(normalized);
+                    user.setCreatedAt(LocalDateTime.now(ZoneId.of("UTC")));
+                    userRepository.save(user);
+                }
+            }
         }
         
         return otpService.generateOtp(normalized);

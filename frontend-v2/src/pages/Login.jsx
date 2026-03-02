@@ -18,15 +18,20 @@ export function Login({ onSwitchToSignup, initialIdentifier }) {
     const requestOtpMutation = useMutation({
         mutationFn: () => {
             const normalized = identifier.trim().includes('@') ? identifier.trim().toLowerCase() : identifier.trim();
-            return authService.requestOtp(normalized);
+            return authService.requestOtp(normalized, 'login');
         },
         onSuccess: (data) => {
             toast.success(data.message || 'OTP sent successfully');
             setStep('otp');
         },
         onError: (error) => {
-            void error;
-            toast.error('Failed to send OTP');
+            const message = error?.response?.data?.message || error?.message;
+            if (message === 'USER_NOT_FOUND') {
+                toast.error('Account not found. Please signup first.');
+                onSwitchToSignup?.();
+            } else {
+                toast.error('Failed to send OTP');
+            }
         }
     });
 

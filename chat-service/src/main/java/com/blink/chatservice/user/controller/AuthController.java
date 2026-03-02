@@ -37,7 +37,7 @@ public class AuthController {
     @PostMapping("/request-otp")
     public ResponseEntity<OtpResponse> requestOtp(@Valid @RequestBody OtpRequest request) {
         String identifier = request.identifier().trim();
-        String otp = userService.requestOtp(identifier);
+        String otp = userService.requestOtp(identifier, request.intent());
 
         log.info("OTP requested for: {}", maskIdentifier(identifier));
 
