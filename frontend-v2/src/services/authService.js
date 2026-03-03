@@ -53,6 +53,11 @@ export const authService = {
         return data;
     },
 
+    disconnectGoogle: async () => {
+        const { data } = await apiClient.post('/api/v1/auth/google/disconnect');
+        return data;
+    },
+
     refreshGoogleToken: async () => {
         const { data } = await apiClient.post('/api/v1/auth/google/refresh');
         return data;

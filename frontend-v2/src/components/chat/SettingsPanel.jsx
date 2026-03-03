@@ -81,7 +81,7 @@ export function SettingsPanel({ onClose }) {
     const handleDisconnectGoogle = async () => {
         setIsDisconnectingGoogle(true);
         try {
-            await authService.logoutGoogle();
+            await authService.disconnectGoogle();
             setIsGoogleLinked(false);
             toast.success('Google account disconnected');
         } catch { toast.error('Failed to disconnect'); }

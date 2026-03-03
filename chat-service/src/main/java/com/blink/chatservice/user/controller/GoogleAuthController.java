@@ -235,18 +235,28 @@ public class GoogleAuthController {
         clearCookie(response, "access_token");
         clearCookie(response, "refresh_token");
 
-        // Send notification email for Google disconnect
-        if (jwt != null && jwtUtil.validateToken(jwt)) {
-            String uid = jwtUtil.extractUserId(jwt);
-            boolean hasGoogle = oAuth2CredentialRepository.findByUserIdAndProvider(uid, "google").isPresent();
-            if (hasGoogle) {
-                userRepository.findById(uid).ifPresent(u -> {
-                    if (u.getEmail() != null && !u.getEmail().isBlank()) {
-                        notificationService.sendAccountActionNotification(u.getEmail(), u.getUsername(), "GOOGLE_DISCONNECTED");
-                    }
-                });
-            }
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/disconnect")
+    public ResponseEntity<?> disconnect(Authentication authentication) {
+        if (authentication == null) return ResponseEntity.status(401).build();
+        String userId = (String) authentication.getPrincipal();
+
+        // Check if user has Google credentials
+        boolean hasGoogle = oAuth2CredentialRepository.findByUserIdAndProvider(userId, "google").isPresent();
+        if (!hasGoogle) {
+            return ResponseEntity.status(404).body(Map.of("error", "No Google account linked"));
         }
+
+        oAuthService.disconnectCredential(userId);
+
+        // Send notification email for Google disconnect
+        userRepository.findById(userId).ifPresent(u -> {
+            if (u.getEmail() != null && !u.getEmail().isBlank()) {
+                notificationService.sendAccountActionNotification(u.getEmail(), u.getUsername(), "GOOGLE_DISCONNECTED");
+            }
+        });
 
         return ResponseEntity.ok().build();
     }

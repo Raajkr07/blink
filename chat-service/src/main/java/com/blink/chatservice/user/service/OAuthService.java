@@ -310,6 +310,12 @@ public class OAuthService {
         }
     }
 
+    public void disconnectCredential(String userId) {
+        OAuth2Credential credential = credentialRepository.findByUserIdAndProvider(userId, "google")
+                .orElseThrow(() -> new IllegalArgumentException("No Google credential found for user"));
+        credentialRepository.delete(credential);
+    }
+
     public void revokeCredential(String userId) {
         OAuth2Credential credential = credentialRepository.findByUserIdAndProvider(userId, "google")
                 .orElseThrow(() -> new IllegalArgumentException("No Google credential found for user"));
