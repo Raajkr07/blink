@@ -24,7 +24,9 @@ export function Login({ onSwitchToSignup, initialIdentifier, turnstileToken, tur
             toast.success(data.message || 'OTP sent successfully');
             setStep('otp');
             // Reset Turnstile after successful use so token is fresh for retries
-            turnstileRef?.current?.reset();
+            if (turnstileRef?.current) {
+                turnstileRef.current.reset();
+            }
         },
         onError: (error) => {
             const message = error?.response?.data?.message || error?.message;
@@ -34,7 +36,9 @@ export function Login({ onSwitchToSignup, initialIdentifier, turnstileToken, tur
             } else {
                 toast.error('Failed to send OTP');
             }
-            turnstileRef?.current?.reset();
+            if (turnstileRef?.current) {
+                turnstileRef.current.reset();
+            }
         }
     });
 

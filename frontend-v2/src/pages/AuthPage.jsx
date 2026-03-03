@@ -36,6 +36,7 @@ const AuthPage = () => {
     // Single Turnstile instance shared between Login and Signup
     const [turnstileToken, setTurnstileToken] = useState('');
     const turnstileRef = useRef(null);
+    const hasMounted = useRef(false);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -44,7 +45,12 @@ const AuthPage = () => {
     }, [isAuthenticated, navigate]);
 
     // Reset token when switching modes so stale tokens aren't reused
+    // Skip initial mount — Turnstile hasn't loaded yet
     useEffect(() => {
+        if (!hasMounted.current) {
+            hasMounted.current = true;
+            return;
+        }
         setTurnstileToken('');
         turnstileRef.current?.reset();
     }, [mode]);
