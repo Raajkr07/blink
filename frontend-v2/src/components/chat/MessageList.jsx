@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQueryClient, useMutation, useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState, useLayoutEffect, useCallback } from 'react';
+import { useEffect, useRef, useState, useLayoutEffect, useCallback, useMemo } from 'react';
 import { chatService, userService } from '../../services';
 import { socketService } from '../../services/socketService';
 import { queryKeys } from '../../lib/queryClient';
@@ -61,11 +61,18 @@ function DateSeparator({ label }) {
 // ─── Main component ──────────────────────────────────────────────────
 export function MessageList({ conversationId }) {
     const { user } = useAuthStore();
-    const { optimisticMessages, removeOptimisticMessage, addTypingUser, removeTypingUser, liveMessages, addLiveMessage } = useChatStore();
+    const { optimisticMessages, removeOptimisticMessage, addTypingUser, removeTypingUser, liveMessages, addLiveMessage, clearUnread } = useChatStore();
     const messagesEndRef = useRef(null);
     const topSentinelRef = useRef(null);
     const scrollContainerRef = useRef(null);
     const prevScrollHeightRef = useRef(0);
+
+    // Clear unread badge as soon as the conversation is opened
+    useEffect(() => {
+        if (conversationId) {
+            clearUnread(conversationId);
+        }
+    }, [conversationId, clearUnread]);
 
     // Fetch conversations list
     const { data: conversationsData } = useQuery({
@@ -125,6 +132,17 @@ export function MessageList({ conversationId }) {
         partnerInfo.name = partnerInfo.name || otherParticipant.username || otherParticipant.name;
     }
 
+    // Synchronously evict any corrupted (non-infinite) cache entry for this key.
+    // Must run before useInfiniteQuery reads the cache during render.
+    useMemo(() => {
+        if (!conversationId) return;
+        const key = queryKeys.messages(conversationId);
+        const existing = queryClient.getQueryData(key);
+        if (existing && !existing.pages) {
+            queryClient.removeQueries({ queryKey: key, exact: true });
+        }
+    }, [conversationId, queryClient]);
+
     const {
         data,
         fetchNextPage,
@@ -137,11 +155,13 @@ export function MessageList({ conversationId }) {
         queryFn: ({ pageParam = 0 }) => chatService.getMessages(conversationId, pageParam, 20),
         initialPageParam: 0,
         getNextPageParam: (lastPage) => {
+            if (!lastPage) return undefined;
             const pageData = lastPage.content || lastPage;
-            if (!pageData || pageData.length === 0 || lastPage.last) return undefined;
+            if (!Array.isArray(pageData) || pageData.length === 0 || lastPage.last) return undefined;
             return (lastPage.number || 0) + 1;
         },
         enabled: !!conversationId,
+        staleTime: 0,
         refetchOnWindowFocus: false,
     });
 

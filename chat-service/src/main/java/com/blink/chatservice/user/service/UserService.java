@@ -16,10 +16,12 @@ public interface UserService {
     String generateAndSaveRefreshToken(String userId);
     
     User getProfile(String userId);
-    User updateProfile(String userId, String username, String avatarUrl, String bio, String email, String phone);
+    User updateProfile(String userId, String username, String avatarUrl, String bio, String email, String phone, Boolean emailNotificationsEnabled);
     List<User> searchUsersByContact(String query, String currentUserId);
     List<String> getOnlineUserIds();
     boolean isUserOnline(String userId);
     boolean userExists(String identifier);
     String resolveUserIdFromContact(String contact);
+    void deleteAccount(String userId);
+    void deactivateAccount(String userId);
 }

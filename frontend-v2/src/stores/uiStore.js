@@ -47,6 +47,26 @@ export const useUIStore = create((set) => ({
         return { showAISuggestions: newValue };
     }),
 
+    emailNotifications: storage.get(STORAGE_KEYS.EMAIL_NOTIFICATIONS) !== null
+        ? storage.get(STORAGE_KEYS.EMAIL_NOTIFICATIONS)
+        : true, // Default to true
+
+    toggleEmailNotifications: () => set((state) => {
+        const newValue = !state.emailNotifications;
+        storage.set(STORAGE_KEYS.EMAIL_NOTIFICATIONS, newValue);
+        return { emailNotifications: newValue };
+    }),
+
+    slashCommands: storage.get(STORAGE_KEYS.SLASH_COMMANDS) !== null
+        ? storage.get(STORAGE_KEYS.SLASH_COMMANDS)
+        : true, // Default to true
+
+    toggleSlashCommands: () => set((state) => {
+        const newValue = !state.slashCommands;
+        storage.set(STORAGE_KEYS.SLASH_COMMANDS, newValue);
+        return { slashCommands: newValue };
+    }),
+
     toggleSidebar: () => set((state) => {
         if (state.isMobile) {
             return { isSidebarOpen: !state.isSidebarOpen };

@@ -28,7 +28,7 @@ export function MessageInput({ conversationId }) {
     }, []);
 
     const { data: messagesPage } = useQuery({
-        queryKey: queryKeys.messages(conversationId, 0),
+        queryKey: ['recentMessages', conversationId],
         queryFn: () => chatService.getMessages(conversationId, 0, 50),
         enabled: !!conversationId,
         staleTime: 5000,
@@ -43,6 +43,7 @@ export function MessageInput({ conversationId }) {
     const lastReceivedMessage = useMemo(() => {
         if (!user) return null;
 
+        // Extract messages from the regular query response
         const history = Array.isArray(messagesPage)
             ? messagesPage
             : messagesPage?.content || [];
@@ -75,7 +76,7 @@ export function MessageInput({ conversationId }) {
                     await Promise.race([
                         socketService.connect(),
                         new Promise((_, reject) => setTimeout(() => reject(new Error('Connect timeout')), 5000))
-                    ]).catch(() => {});
+                    ]).catch(() => { });
                 }
 
                 const sent = socketService.send(destination, payload);
@@ -134,7 +135,7 @@ export function MessageInput({ conversationId }) {
         }
     }, [conversationId]);
 
-    const { openModal } = useUIStore();
+    const { openModal, slashCommands } = useUIStore();
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -143,18 +144,35 @@ export function MessageInput({ conversationId }) {
         if (!trimmedMessage) return;
 
         // Slash command handling
-        if (trimmedMessage.startsWith('/')) {
+        if (slashCommands && trimmedMessage.startsWith('/')) {
             const [command, ...args] = trimmedMessage.split(' ');
 
             if (command === '/email') {
-                // Usage: /email rk82100@example.com subject body
-                if (args.length < 3) {
-                    toast.error('Usage: /email <to> <subject> <body>');
+                // Usage: /email <to> "<subject>" <body>
+                // Or:    /email <to>  (opens compose with recipient)
+                // Or:    /email       (opens blank compose)
+                if (args.length === 0) {
+                    openModal('emailPreview', { to: '', subject: '', body: '' });
+                    setMessage('');
                     return;
                 }
+
                 const to = args[0];
-                const subject = args[1];
-                const body = args.slice(2).join(' ');
+                const rest = args.slice(1).join(' ');
+
+                // Parse quoted subject: "subject here" body here
+                let subject = '';
+                let body = '';
+                const quoteMatch = rest.match(/^"([^"]*)"(.*)$/s);
+                if (quoteMatch) {
+                    subject = quoteMatch[1].trim();
+                    body = quoteMatch[2].trim();
+                } else if (args.length >= 3) {
+                    subject = args[1];
+                    body = args.slice(2).join(' ');
+                } else if (args.length === 2) {
+                    subject = args[1];
+                }
 
                 openModal('emailPreview', { to, subject, body });
                 setMessage('');
@@ -162,13 +180,33 @@ export function MessageInput({ conversationId }) {
             }
 
             if (command === '/save') {
-                // Usage: /save filename.txt content
-                if (args.length < 2) {
-                    toast.error('Usage: /save <filename> <content>');
+                // Usage: /save "<filename>" <content> or /save <filename> <content>
+                if (args.length === 0) {
+                    toast.error('Usage: /save "<filename>" <content>');
                     return;
                 }
-                const fileName = args[0];
-                const content = args.slice(1).join(' ');
+
+                const rest = args.join(' ');
+
+                let fileName = '';
+                let content = '';
+                const quoteMatch = rest.match(/^"([^"]*)"(.*)$/s);
+
+                if (quoteMatch) {
+                    fileName = quoteMatch[1].trim();
+                    content = quoteMatch[2].trim();
+                } else if (args.length >= 2) {
+                    fileName = args[0];
+                    content = args.slice(1).join(' ');
+                } else {
+                    toast.error('Usage: /save "<filename>" <content>');
+                    return;
+                }
+
+                if (!fileName || !content) {
+                    toast.error('Both filename and content are required');
+                    return;
+                }
 
                 openModal('filePermission', { fileName, content, location: 'Desktop' });
                 setMessage('');
@@ -254,6 +292,18 @@ export function MessageInput({ conversationId }) {
                         className="min-h-12 h-12"
                     />
                 </div>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => openModal('emailPreview', { to: '', subject: '', body: '' })}
+                    className="h-12 px-3 text-gray-400 hover:text-blue-400"
+                    title="Compose Email"
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                    </svg>
+                </Button>
                 <Button
                     type="submit"
                     variant="default"

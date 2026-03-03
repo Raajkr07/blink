@@ -61,5 +61,10 @@ export const authService = {
     revokeGoogleAccess: async () => {
         const { data } = await apiClient.post('/api/v1/auth/google/revoke');
         return data;
+    },
+
+    getGoogleStatus: async () => {
+        const { data } = await apiClient.get('/api/v1/auth/google/status');
+        return data;
     }
 };

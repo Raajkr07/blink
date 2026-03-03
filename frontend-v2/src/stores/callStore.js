@@ -76,6 +76,18 @@ export const useCallStore = create((set, get) => ({
             callStatus: 'ringing',
         });
 
+        // Immediately tell the caller we're ringing so their UI updates
+        try {
+            socketService.send('/app/video/signal', {
+                callId: notification.callId,
+                type: 'RINGING',
+                data: '',
+                targetUserId: notification.callerId,
+            });
+        } catch {
+            // Non-critical, suppress
+        }
+
         // Process any orphaned signals for this call
         const { orphanedSignals } = get();
         const orphans = orphanedSignals[notification.callId];
@@ -398,15 +410,31 @@ export const useCallStore = create((set, get) => ({
 
     // End active call
     endCall: async (outcome = 'ended') => {
-        const { activeCall, localStream } = get();
+        const { activeCall, incomingCall, localStream } = get();
+        const currentCall = activeCall || incomingCall;
 
-        if (activeCall?.id) {
+        if (currentCall?.id) {
             try {
                 if (outcome === 'ended') {
-                    await callService.endCall(activeCall.id);
+                    await callService.endCall(currentCall.id);
                 }
             } catch (error) {
                 reportErrorOnce('call-end', error, 'Failed to end call');
+            }
+
+            // Notify remote peer that the call has ended so their UI updates
+            try {
+                const targetUserId = currentCall.callerId === socketService.getUserId()
+                    ? currentCall.receiverId
+                    : currentCall.callerId;
+                socketService.send('/app/video/signal', {
+                    callId: currentCall.id,
+                    type: 'CALL_ENDED',
+                    data: '',
+                    targetUserId,
+                });
+            } catch {
+                // Non-critical, suppress
             }
         }
 

@@ -2,9 +2,11 @@ package com.blink.chatservice.user.controller;
 
 import com.blink.chatservice.config.GoogleOAuthConfig;
 import com.blink.chatservice.config.JwtConfig;
+import com.blink.chatservice.notification.service.NotificationService;
 import com.blink.chatservice.security.JwtUtil;
 import com.blink.chatservice.security.TokenDenylistService;
 import com.blink.chatservice.user.entity.User;
+import com.blink.chatservice.user.repository.OAuth2CredentialRepository;
 import com.blink.chatservice.user.repository.UserRepository;
 import com.blink.chatservice.user.service.OAuthService;
 import com.blink.chatservice.user.service.UserService;
@@ -37,6 +39,8 @@ public class GoogleAuthController {
     private final TokenDenylistService denylistService;
     private final UserRepository userRepository;
     private final UserService userService;
+    private final NotificationService notificationService;
+    private final OAuth2CredentialRepository oAuth2CredentialRepository;
 
     @Value("${app.cookie.domain:#{null}}")
     private String cookieDomain;
@@ -45,6 +49,14 @@ public class GoogleAuthController {
     public ResponseEntity<Map<String, String>> initAuth(@RequestParam(required = false) String redirect_to) {
         String authUrl = oAuthService.generateAuthUrl(redirect_to);
         return ResponseEntity.ok(Collections.singletonMap("url", authUrl));
+    }
+
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, Object>> googleStatus(Authentication authentication) {
+        if (authentication == null) return ResponseEntity.status(401).build();
+        String userId = (String) authentication.getPrincipal();
+        boolean linked = oAuth2CredentialRepository.findByUserIdAndProvider(userId, "google").isPresent();
+        return ResponseEntity.ok(Map.of("linked", linked));
     }
 
     @GetMapping("/callback")
@@ -65,6 +77,13 @@ public class GoogleAuthController {
             }
 
             response.sendRedirect(redirectUri); 
+        } catch (IllegalStateException e) {
+            log.error("OAuth Callback Error: {}", e.getMessage());
+            String errorRedirect = googleConfig.getErrorRedirectUri();
+            if (e.getMessage() != null && e.getMessage().contains("scheduled for deletion")) {
+                errorRedirect += (errorRedirect.contains("?") ? "&" : "?") + "error=account_deleted";
+            }
+            response.sendRedirect(errorRedirect);
         } catch (Exception e) {
             log.error("OAuth Callback Error: {}", e.getMessage());
             response.sendRedirect(googleConfig.getErrorRedirectUri());
@@ -215,13 +234,43 @@ public class GoogleAuthController {
 
         clearCookie(response, "access_token");
         clearCookie(response, "refresh_token");
+
+        // Send notification email for Google disconnect
+        if (jwt != null && jwtUtil.validateToken(jwt)) {
+            String uid = jwtUtil.extractUserId(jwt);
+            boolean hasGoogle = oAuth2CredentialRepository.findByUserIdAndProvider(uid, "google").isPresent();
+            if (hasGoogle) {
+                userRepository.findById(uid).ifPresent(u -> {
+                    if (u.getEmail() != null && !u.getEmail().isBlank()) {
+                        notificationService.sendAccountActionNotification(u.getEmail(), u.getUsername(), "GOOGLE_DISCONNECTED");
+                    }
+                });
+            }
+        }
+
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/revoke")
-    public ResponseEntity<Void> revoke(Authentication authentication) {
+    public ResponseEntity<?> revoke(Authentication authentication) {
         if (authentication == null) return ResponseEntity.status(401).build();
-        oAuthService.revokeCredential((String) authentication.getPrincipal());
+        String userId = (String) authentication.getPrincipal();
+
+        // Check if user has Google credentials
+        boolean hasGoogle = oAuth2CredentialRepository.findByUserIdAndProvider(userId, "google").isPresent();
+        if (!hasGoogle) {
+            return ResponseEntity.status(404).body(Map.of("error", "No Google account linked"));
+        }
+
+        oAuthService.revokeCredential(userId);
+
+        // Send notification email for Google revoke
+        userRepository.findById(userId).ifPresent(u -> {
+            if (u.getEmail() != null && !u.getEmail().isBlank()) {
+                notificationService.sendAccountActionNotification(u.getEmail(), u.getUsername(), "GOOGLE_REVOKED");
+            }
+        });
+
         return ResponseEntity.ok().build();
     }
 

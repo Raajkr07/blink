@@ -32,7 +32,7 @@ export const queryKeys = {
     conversation: (id) => ['conversation', id],
 
 
-    messages: (conversationId, page) => ['messages', conversationId, page],
+    messages: (conversationId) => ['messages', conversationId],
 
 
     groups: ['groups'],

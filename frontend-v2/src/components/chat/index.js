@@ -10,7 +10,7 @@ export { AutoReplySuggestions } from './AutoReplySuggestions';
 export { ConversationAnalysisModal } from './ConversationAnalysisModal';
 export { FilePermissionModal } from './FilePermissionModal';
 export { EmailPreviewModal } from './EmailPreviewModal';
-export { SettingsModal } from './SettingsModal';
+export { SettingsPanel } from './SettingsPanel';
 export { ProfileModal } from './ProfileModal';
 export { CalendarPreviewModal } from './CalendarPreviewModal';
 export { BrowseGroupsModal } from './BrowseGroupsModal';

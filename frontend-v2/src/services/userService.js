@@ -40,5 +40,15 @@ export const userService = {
     amIOnline: async () => {
         const { data } = await apiClient.get('/api/v1/users/me/online');
         return data;
+    },
+
+    deleteAccount: async () => {
+        const { data } = await apiClient.delete('/api/v1/me');
+        return data;
+    },
+
+    deactivateAccount: async () => {
+        const { data } = await apiClient.post('/api/v1/me/deactivate');
+        return data;
     }
 };

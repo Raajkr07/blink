@@ -1,13 +1,14 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { chatService, userService, aiService } from '../../services';
+import { socketService } from '../../services/socketService';
 import { queryKeys } from '../../lib/queryClient';
 import { useChatStore, useTabsStore, useAuthStore, useUIStore } from '../../stores';
 import { Avatar, Skeleton, SkeletonAvatar, SkeletonConversation, EmptyState, NoConversationsIcon, NoSearchResultsIcon } from '../ui';
 import { cn, formatRelativeTime, truncate } from '../../lib/utils';
 
 export function ConversationList() {
-    const { activeConversationId, setActiveConversation, searchQuery, setSearchQuery, clearSearch } = useChatStore();
+    const { activeConversationId, setActiveConversation, searchQuery, setSearchQuery, clearSearch, unreadCounts, clearUnread, incrementUnread } = useChatStore();
     const { openTab, getTabByConversationId, activeTabId, tabs } = useTabsStore();
     const { user: currentUser } = useAuthStore();
     const { isSidebarCollapsed } = useUIStore();
@@ -64,6 +65,62 @@ export function ConversationList() {
             c.type?.toUpperCase() !== 'AI_ASSISTANT'
         );
 
+    // ── Real-time: subscribe to each conversation's topic to update sidebar live ──
+    const activeConvRef = useRef(activeConversationId);
+    useEffect(() => { activeConvRef.current = activeConversationId; }, [activeConversationId]);
+
+    useEffect(() => {
+        if (!currentUser?.id || !normalizedConversations.length) return;
+
+        const subs = [];
+
+        for (const conv of normalizedConversations) {
+            const topic = `/topic/conversations/${conv.id}`;
+
+            // Only subscribe if not already subscribed via MessageList
+            // We use a lightweight listener that just bumps the conversation list
+            const sub = socketService.subscribe(topic, (rawMessage) => {
+                if (!rawMessage) return;
+
+                // Update the conversation's last message preview in the query cache
+                queryClient.setQueryData(queryKeys.conversations, (old) => {
+                    if (!old) return old;
+
+                    const list = Array.isArray(old) ? old : (old?.conversations || old?.content || old?.data || []);
+                    const updatedList = list.map(c => {
+                        if (c.id !== conv.id) return c;
+                        return {
+                            ...c,
+                            lastMessagePreview: rawMessage.body || c.lastMessagePreview,
+                            lastMessageAt: rawMessage.createdAt || c.lastMessageAt,
+                        };
+                    });
+
+                    if (Array.isArray(old)) return updatedList;
+                    if (old?.conversations) return { ...old, conversations: updatedList };
+                    if (old?.content) return { ...old, content: updatedList };
+                    if (old?.data) return { ...old, data: updatedList };
+                    return old;
+                });
+
+                // Increment unread count if this is NOT the currently open conversation
+                // and the message is from someone else
+                const isFromSelf = rawMessage.senderId === currentUser.id || rawMessage.senderId === 'me';
+                if (!isFromSelf && activeConvRef.current !== conv.id) {
+                    incrementUnread(conv.id);
+                }
+            });
+
+            subs.push(sub);
+        }
+
+        return () => {
+            subs.forEach(s => s && s.unsubscribe());
+        };
+        // We intentionally key on conversation IDs only, not the full objects
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentUser?.id, normalizedConversations.map(c => c.id).join(',')]);
+
     // Collect all participant IDs that need user profiles (for DIRECT chats without title)
     const userIdsToFetch = useMemo(() => {
         if (!currentUser || !normalizedConversations.length) return [];
@@ -111,13 +168,22 @@ export function ConversationList() {
         return map;
     }, [batchUsers]);
 
+    // Sort conversations by most recent message (real-time aware)
+    const sortedConversations = useMemo(() => {
+        return [...normalizedConversations].sort((a, b) => {
+            const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+            const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+            return timeB - timeA;
+        });
+    }, [normalizedConversations]);
+
     // Apply search filtering
     const filteredConversations = useMemo(() => {
-        if (!searchQuery) return normalizedConversations;
+        if (!searchQuery) return sortedConversations;
 
         const lowerQuery = searchQuery.toLowerCase();
 
-        return normalizedConversations.filter(conv => {
+        return sortedConversations.filter(conv => {
             // Basic title match
             const title = (conv.title || '').toLowerCase();
             if (title.includes(lowerQuery)) return true;
@@ -153,12 +219,13 @@ export function ConversationList() {
 
             return false;
         });
-    }, [normalizedConversations, searchQuery, userMap, currentUser, aiSearchCriteria]);
+    }, [sortedConversations, searchQuery, userMap, currentUser, aiSearchCriteria]);
 
     const handleConversationClick = (conversation, event) => {
         if (event.defaultPrevented) return;
         openTab(conversation);
         setActiveConversation(conversation.id);
+        clearUnread(conversation.id);
     };
 
     // Show skeletons while conversations OR batch users are loading
@@ -263,6 +330,7 @@ export function ConversationList() {
                         const activeTab = tabs?.find(t => t.id === activeTabId);
                         const highlightId = activeTab?.conversationId || activeConversationId;
                         const hasTab = getTabByConversationId(conversation.id);
+                        const unread = unreadCounts[conversation.id] || 0;
                         return (
                             <ConversationItem
                                 key={conversation.id}
@@ -271,6 +339,7 @@ export function ConversationList() {
                                 userMap={userMap}
                                 isActive={highlightId === conversation.id}
                                 hasTab={!!hasTab}
+                                unreadCount={unread}
                                 onClick={(e) => handleConversationClick(conversation, e)}
                             />
                         );
@@ -281,7 +350,7 @@ export function ConversationList() {
     );
 }
 
-function ConversationItem({ conversation, currentUser, userMap, isActive, hasTab, onClick }) {
+function ConversationItem({ conversation, currentUser, userMap, isActive, hasTab, unreadCount, onClick }) {
     const isGroup = conversation.type === 'GROUP' || conversation.type === 'COMMUNITY';
     const isAI = conversation.type === 'AI_ASSISTANT';
     const { isSidebarCollapsed } = useUIStore();
@@ -327,8 +396,8 @@ function ConversationItem({ conversation, currentUser, userMap, isActive, hasTab
                     }
                 }}
                 className={cn(
-                    'w-full py-2 flex items-center justify-center cursor-pointer outline-none',
-                    'hover:bg-[var(--color-border)] transition-colors relative',
+                    'w-full py-2 flex items-center justify-center cursor-pointer outline-none relative',
+                    'hover:bg-[var(--color-border)] transition-colors',
                     isActive && 'bg-[var(--color-border)]'
                 )}
                 title={displayTitle}
@@ -342,6 +411,11 @@ function ConversationItem({ conversation, currentUser, userMap, isActive, hasTab
                     size="sm"
                     online={false}
                 />
+                {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-blue-500 text-white text-[10px] font-bold px-1 leading-none shadow-lg">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                )}
             </div>
         );
     }
@@ -362,11 +436,12 @@ function ConversationItem({ conversation, currentUser, userMap, isActive, hasTab
                 'hover:bg-[var(--color-border)] transition-colors',
                 'border-b border-[var(--color-border)]',
                 'text-left relative',
-                isActive && 'bg-[var(--color-border)] border-l-2 border-l-[var(--color-foreground)]'
+                isActive && 'bg-[var(--color-border)] border-l-2 border-l-[var(--color-foreground)]',
+                unreadCount > 0 && !isActive && 'bg-blue-500/5'
             )}
             title="Click to open, Ctrl+Click to open in new tab"
         >
-            {hasTab && (
+            {hasTab && !unreadCount && (
                 <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-blue-500" />
             )}
 
@@ -379,20 +454,38 @@ function ConversationItem({ conversation, currentUser, userMap, isActive, hasTab
 
             <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-medium text-[var(--color-foreground)] truncate pr-6">
+                    <h3 className={cn(
+                        "font-medium text-[var(--color-foreground)] truncate pr-6",
+                        unreadCount > 0 && "font-bold"
+                    )}>
                         {displayTitle}
                     </h3>
-                    {conversation.lastMessageAt && (
-                        <span className="text-xs text-[var(--color-gray-500)] flex-shrink-0 ml-2 group-hover:hidden">
-                            {formatRelativeTime(conversation.lastMessageAt)}
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                        {conversation.lastMessageAt && (
+                            <span className={cn(
+                                "text-xs flex-shrink-0 group-hover:hidden",
+                                unreadCount > 0 ? "text-blue-400 font-semibold" : "text-[var(--color-gray-500)]"
+                            )}>
+                                {formatRelativeTime(conversation.lastMessageAt)}
+                            </span>
+                        )}
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    {conversation.lastMessagePreview && (
+                        <p className={cn(
+                            "text-sm truncate pr-6 flex-1",
+                            unreadCount > 0 ? "text-[var(--color-foreground)] font-medium" : "text-[var(--color-gray-400)]"
+                        )}>
+                            {truncate(conversation.lastMessagePreview, 60)}
+                        </p>
+                    )}
+                    {unreadCount > 0 && (
+                        <span className="min-w-[20px] h-[20px] flex items-center justify-center rounded-full bg-blue-500 text-white text-[10px] font-bold px-1.5 leading-none shadow-lg flex-shrink-0">
+                            {unreadCount > 99 ? '99+' : unreadCount}
                         </span>
                     )}
                 </div>
-                {conversation.lastMessagePreview && (
-                    <p className="text-sm text-[var(--color-gray-400)] truncate pr-6">
-                        {truncate(conversation.lastMessagePreview, 60)}
-                    </p>
-                )}
             </div>
         </div>
     );

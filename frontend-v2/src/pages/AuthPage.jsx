@@ -8,6 +8,7 @@ import { BlinkingFace } from './BlinkingFace';
 import { cn } from '../lib/utils';
 import { useAuthStore } from '../stores/authStore';
 import { reportErrorOnce } from '../lib/reportError';
+import toast from 'react-hot-toast';
 
 const AuthPage = () => {
     const navigate = useNavigate();
@@ -42,6 +43,21 @@ const AuthPage = () => {
             navigate('/chat', { replace: true });
         }
     }, [isAuthenticated, navigate]);
+
+    // Check for account deletion error from Google OAuth redirect
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('error') === 'account_deleted') {
+            toast.error(
+                'Account is scheduled for deletion. To recover your account, please contact account@blinxai.me within 7 hours of deletion request.',
+                { duration: 8000 }
+            );
+            // Clean up URL
+            params.delete('error');
+            const newUrl = params.toString() ? `${window.location.pathname}?${params}` : window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+        }
+    }, []);
 
     const handleSwitchMode = (newMode) => {
         setMode(newMode);
@@ -179,7 +195,11 @@ const AuthPage = () => {
                             setTurnstileToken('');
                             turnstileRef.current?.reset();
                         }}
-                        options={{ theme: 'dark', size: 'flexible' }}
+                        options={{
+                            theme: 'dark',
+                            size: 'flexible',
+                            appearance: 'always'
+                        }}
                     />
                 </div>
             </div>

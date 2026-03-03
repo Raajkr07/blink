@@ -64,14 +64,20 @@ const VerifyPage = () => {
                     setMessage('Verification failed.');
                 }
             } catch (err) {
-                const errorMessage = err?.message;
+                const errorMessage = err?.response?.data?.message || err?.message || '';
 
-                if (errorMessage === 'Profile incomplete') {
+                if (errorMessage.includes('Profile incomplete')) {
                     setStatus('success');
                     setMessage('Redirecting to set up your profile...');
                     setTimeout(() => {
                         window.location.href = `/auth?mode=signup&v=${encodeURIComponent(token)}`;
                     }, 2000);
+                    return;
+                }
+
+                if (errorMessage.includes('scheduled for deletion')) {
+                    setStatus('error');
+                    setMessage(errorMessage);
                     return;
                 }
 

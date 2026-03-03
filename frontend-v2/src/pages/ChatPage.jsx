@@ -27,11 +27,11 @@ import {
     AIAssistantButton,
     OnlineUsersPanel,
 } from '../components/chat';
+import { SettingsPanel } from '../components/chat/SettingsPanel';
 import { CallLogs } from '../components/calls';
 
 const NewChatModal = lazy(() => import('../components/chat/NewChatModal').then(m => ({ default: m.NewChatModal })));
 const NewGroupModal = lazy(() => import('../components/chat/NewGroupModal').then(m => ({ default: m.NewGroupModal })));
-const SettingsModal = lazy(() => import('../components/chat/SettingsModal').then(m => ({ default: m.SettingsModal })));
 const BrowseGroupsModal = lazy(() => import('../components/chat/BrowseGroupsModal').then(m => ({ default: m.BrowseGroupsModal })));
 
 const ChatPage = () => {
@@ -42,7 +42,6 @@ const ChatPage = () => {
 
     const [showNewChatModal, setShowNewChatModal] = useState(false);
     const [showNewGroupModal, setShowNewGroupModal] = useState(false);
-    const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [showBrowseGroupsModal, setShowBrowseGroupsModal] = useState(false);
 
     useEffect(() => {
@@ -122,7 +121,7 @@ const ChatPage = () => {
                                     "flex items-center cursor-pointer hover:bg-white/5 rounded-lg transition-all duration-1000 overflow-hidden flex-shrink-0",
                                     isSidebarCollapsed ? "justify-center p-0 gap-0 w-10 h-10" : "flex-1 p-2 gap-3 w-auto"
                                 )}
-                                onClick={() => setShowSettingsModal(true)}
+                                onClick={() => setActiveView(activeView === 'settings' ? 'chat' : 'settings')}
                                 title={isSidebarCollapsed ? user?.username : undefined}
                             >
                                 <Avatar src={user?.avatarUrl} name={user?.username} size="sm" online />
@@ -226,7 +225,9 @@ const ChatPage = () => {
                 }
             >
                 <ChatWindow>
-                    {activeView === 'calls' ? (
+                    {activeView === 'settings' ? (
+                        <SettingsPanel onClose={() => setActiveView('chat')} />
+                    ) : activeView === 'calls' ? (
                         <>
                             <ChatWindowHeader>
                                 <h1 className="text-lg font-semibold px-4">Call Logs</h1>
@@ -259,7 +260,6 @@ const ChatPage = () => {
             <Suspense fallback={null}>
                 <NewChatModal open={showNewChatModal} onOpenChange={setShowNewChatModal} />
                 <NewGroupModal open={showNewGroupModal} onOpenChange={setShowNewGroupModal} />
-                <SettingsModal open={showSettingsModal} onOpenChange={setShowSettingsModal} />
                 <BrowseGroupsModal open={showBrowseGroupsModal} onOpenChange={setShowBrowseGroupsModal} />
             </Suspense>
 

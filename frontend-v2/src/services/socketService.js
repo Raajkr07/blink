@@ -22,7 +22,8 @@ class SocketService {
         this._lastHiddenAt = 0;
 
         // Pending subscriptions — re-subscribed automatically on reconnect
-        this._subscriptions = new Map();  // topic -> { callback, stompSub }
+        this._subscriptions = new Map();  // topic -> [{ callback, stompSub, subId }]
+        this._subIdCounter = 0;
 
         // Heartbeat / keep-alive
         this._heartbeatOutgoing = 10000;  // client → server every 10 s
@@ -202,10 +203,16 @@ class SocketService {
 
     // Subscribe to a STOMP topic. The subscription is persistent
     // it will be automatically re-established after reconnection.
+    // Multiple subscribers to the same topic are fully supported.
     subscribe(topic, callback) {
-        // Store for re-subscription on reconnect
-        const entry = { callback, stompSub: null };
-        this._subscriptions.set(topic, entry);
+        const subId = `${topic}::${++this._subIdCounter}`;
+        const entry = { callback, stompSub: null, subId };
+
+        // Add to the array of listeners for this topic
+        if (!this._subscriptions.has(topic)) {
+            this._subscriptions.set(topic, []);
+        }
+        this._subscriptions.get(topic).push(entry);
 
         // If already connected, subscribe immediately
         if (this.client?.connected) {
@@ -222,7 +229,15 @@ class SocketService {
                         reportErrorOnce('socket-unsubscribe', error, 'Real-time connection error');
                     }
                 }
-                this._subscriptions.delete(topic);
+                const entries = this._subscriptions.get(topic);
+                if (entries) {
+                    const filtered = entries.filter(e => e.subId !== subId);
+                    if (filtered.length === 0) {
+                        this._subscriptions.delete(topic);
+                    } else {
+                        this._subscriptions.set(topic, filtered);
+                    }
+                }
             }
         };
     }
@@ -275,16 +290,18 @@ class SocketService {
     }
 
     _resubscribeAll() {
-        for (const [topic, entry] of this._subscriptions) {
-            // Unsubscribe stale handle if any
-            if (entry.stompSub) {
-                try {
-                    entry.stompSub.unsubscribe();
-                } catch (error) {
-                    reportErrorOnce('socket-unsubscribe', error, 'Real-time connection error');
+        for (const [topic, entries] of this._subscriptions) {
+            for (const entry of entries) {
+                // Unsubscribe stale handle if any
+                if (entry.stompSub) {
+                    try {
+                        entry.stompSub.unsubscribe();
+                    } catch (error) {
+                        reportErrorOnce('socket-unsubscribe', error, 'Real-time connection error');
+                    }
                 }
+                entry.stompSub = this._doSubscribe(topic, entry.callback);
             }
-            entry.stompSub = this._doSubscribe(topic, entry.callback);
         }
     }
 

@@ -6,12 +6,14 @@ import com.blink.chatservice.security.JwtUtil;
 import com.blink.chatservice.user.dto.AuthDto;
 import com.blink.chatservice.user.entity.RefreshToken;
 import com.blink.chatservice.user.entity.User;
+import com.blink.chatservice.user.repository.OAuth2CredentialRepository;
 import com.blink.chatservice.user.repository.RefreshTokenRepository;
 import com.blink.chatservice.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +26,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
     private static final Pattern PHONE_PATTERN = Pattern.compile("^(\\[\\s]?)?[6-9]\\d{9}$");
@@ -37,6 +38,30 @@ public class UserServiceImpl implements UserService {
     private final JwtConfig jwtConfig;
     private final CacheManager cacheManager;
     private final NotificationService notificationService;
+    private final OAuth2CredentialRepository oAuth2CredentialRepository;
+    private final OAuthService oAuthService;
+
+    public UserServiceImpl(
+            UserRepository userRepository,
+            OtpService otpService,
+            JwtUtil jwtUtil,
+            RefreshTokenRepository refreshTokenRepository,
+            JwtConfig jwtConfig,
+            CacheManager cacheManager,
+            NotificationService notificationService,
+            OAuth2CredentialRepository oAuth2CredentialRepository,
+            @Lazy OAuthService oAuthService
+    ) {
+        this.userRepository = userRepository;
+        this.otpService = otpService;
+        this.jwtUtil = jwtUtil;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.jwtConfig = jwtConfig;
+        this.cacheManager = cacheManager;
+        this.notificationService = notificationService;
+        this.oAuth2CredentialRepository = oAuth2CredentialRepository;
+        this.oAuthService = oAuthService;
+    }
 
     @Override
     public String requestOtp(String identifier, String intent) {
@@ -144,6 +169,9 @@ public class UserServiceImpl implements UserService {
 
         String normalized = normalizeIdentifier(request.identifier());
         User user = getUserByIdentifier(normalized);
+        if (user.isPendingDeletion()) {
+            throw new IllegalStateException("Account is scheduled for deletion. To recover your account, please contact account@blinxai.me within 7 hours of deletion request.");
+        }
         if (user.getUsername() == null || user.getUsername().isBlank()) throw new IllegalStateException("Profile incomplete");
 
         if (request.otp() != null && !request.otp().isBlank()) {
@@ -211,7 +239,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     @CachePut(value = "users_v2", key = "#userId")
-    public User updateProfile(String userId, String username, String avatarUrl, String bio, String email, String phone) {
+    public User updateProfile(String userId, String username, String avatarUrl, String bio, String email, String phone, Boolean emailNotificationsEnabled) {
         User user = getProfile(userId);
         if (username != null && !username.isBlank()) {
             if (username.contains("java.util.")) throw new IllegalArgumentException("Invalid username");
@@ -231,6 +259,9 @@ public class UserServiceImpl implements UserService {
         if (phone != null && !phone.isBlank()) {
             checkPhone(phone, userId);
             user.setPhone(phone.trim());
+        }
+        if (emailNotificationsEnabled != null) {
+            user.setEmailNotificationsEnabled(emailNotificationsEnabled);
         }
         return userRepository.save(user);
     }
@@ -281,6 +312,79 @@ public class UserServiceImpl implements UserService {
 
         // Try email last
         return userRepository.findFirstByEmail(trimmed.toLowerCase(Locale.ROOT)).map(User::getId).orElse(null);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAccount(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String email = user.getEmail();
+        String username = user.getUsername();
+
+        // Revoke Google credentials if linked
+        oAuth2CredentialRepository.findByUserIdAndProvider(userId, "google")
+                .ifPresent(credential -> {
+                    try {
+                        oAuthService.revokeCredential(userId);
+                    } catch (Exception e) {
+                        // If revoke fails, still delete the credential record
+                        oAuth2CredentialRepository.delete(credential);
+                    }
+                });
+
+        // Revoke all refresh tokens
+        refreshTokenRepository.deleteByUserId(userId);
+
+        // Mark as pending deletion (soft delete — actual deletion after 7 hours)
+        user.setPendingDeletion(true);
+        user.setDeletionScheduledAt(LocalDateTime.now(ZoneId.of("UTC")).plusHours(7));
+        user.setOnline(false);
+        user.setActive(false);
+        userRepository.save(user);
+
+        // Evict from cache
+        if (cacheManager != null) {
+            var cache = cacheManager.getCache("users_v2");
+            if (cache != null) cache.evict(userId);
+        }
+
+        // Send notification email
+        if (email != null && !email.isBlank()) {
+            notificationService.sendAccountActionNotification(email, username, "ACCOUNT_DELETED");
+        }
+    }
+
+    @Override
+    @Transactional
+    public void deactivateAccount(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        user.setOnline(false);
+        user.setActive(false);
+        user.setLastSeen(LocalDateTime.now(ZoneId.of("UTC")));
+        userRepository.save(user);
+
+        // Remove Google credentials if linked (disconnect, don't revoke — user may reactivate)
+        oAuth2CredentialRepository.findByUserIdAndProvider(userId, "google")
+                .ifPresent(oAuth2CredentialRepository::delete);
+
+        // Revoke all refresh tokens
+        refreshTokenRepository.deleteByUserId(userId);
+
+        // Evict from cache
+        if (cacheManager != null) {
+            var cache = cacheManager.getCache("users_v2");
+            if (cache != null) cache.evict(userId);
+        }
+
+        // Send notification email
+        String email = user.getEmail();
+        if (email != null && !email.isBlank()) {
+            notificationService.sendAccountActionNotification(email, user.getUsername(), "ACCOUNT_DEACTIVATED");
+        }
     }
 
     private String createRefreshToken(String userId) {

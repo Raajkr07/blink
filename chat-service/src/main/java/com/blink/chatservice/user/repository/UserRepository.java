@@ -28,4 +28,6 @@ public interface UserRepository extends MongoRepository<User, String> {
 
     @Query(value = "{ '$and': [ { '$or': [ { 'username': { '$exists': false } }, { 'username': null }, { 'username': '' } ] }, { 'createdAt': { '$lt': ?0 } } ] }", delete = true)
     long deleteIncompleteUsers(LocalDateTime threshold);
+
+    List<User> findByPendingDeletionTrueAndDeletionScheduledAtBefore(LocalDateTime cutoff);
 }

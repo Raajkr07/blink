@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { motion as Motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authService, userService } from '../services';
 import { useAuthStore } from '../stores/authStore';
 import { Button, Input, GoogleButton } from '../components/ui';
@@ -223,8 +223,8 @@ export function Signup({ onSwitchToLogin, initialIdentifier, turnstileToken, tur
                 </p>
                 <p className="text-[10px] text-gray-300 leading-relaxed px-4">
                     By joining, you agree to Blinx AI's{' '}
-                    <a href="/terms" className="text-gray-300 hover:text-white underline">Terms of Service</a> and{' '}
-                    <a href="/privacy-policy" className="text-gray-300 hover:text-white underline">Privacy Policy</a>.
+                    <Link to="/terms" className="text-gray-300 hover:text-white underline">Terms of Service</Link> and{' '}
+                    <Link to="/privacy-policy" className="text-gray-300 hover:text-white underline">Privacy Policy</Link>.
                 </p>
             </div>
         </Motion.div>

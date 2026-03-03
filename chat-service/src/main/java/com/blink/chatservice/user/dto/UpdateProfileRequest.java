@@ -9,4 +9,5 @@ public class UpdateProfileRequest {
     private String bio;
     private String email;
     private String phone;
+    private Boolean emailNotificationsEnabled;
 }

@@ -1,159 +1,180 @@
 <!doctype html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="color-scheme" content="dark">
+    <meta name="supported-color-schemes" content="dark">
     <title th:text="'Verify your ' + ${appName} + ' account'">Verify your account</title>
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #000000;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            color: #ffffff;
+        /* Reset */
+        body,
+        table,
+        td,
+        a {
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
         }
 
-        .wrapper {
-            width: 100%;
-            table-layout: fixed;
-            background-color: #000000;
-            padding-bottom: 40px;
+        table,
+        td {
+            mso-table-lspace: 0pt;
+            mso-table-rspace: 0pt;
         }
 
-        .container {
-            width: 100%;
-            max-width: 520px;
-            margin: 0 auto;
-            background-color: #0a0a0a;
-            border: 1px solid #1a1a1a;
-            border-radius: 20px;
-            margin-top: 40px;
-            overflow: hidden;
-        }
-
-        .header {
-            padding: 40px 40px 20px 40px;
-            text-align: center;
-        }
-
-        .logo {
-            font-size: 26px;
-            font-weight: 800;
-            letter-spacing: -1px;
-            color: #ffffff;
-            margin-bottom: 8px;
-        }
-
-        .content {
-            padding: 0 40px 40px 40px;
-            text-align: center;
-        }
-
-        h1 {
-            font-size: 24px;
-            font-weight: 700;
-            color: #ffffff;
-            margin-bottom: 12px;
-        }
-
-        p {
-            font-size: 15px;
-            color: #a3a3a3;
-            margin-bottom: 30px;
-        }
-
-        .otp-container {
-            background-color: #111111;
-            border: 1px solid #262626;
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 30px;
-        }
-
-        .otp-code {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 48px;
-            font-weight: 800;
-            letter-spacing: 10px;
-            color: #ffffff;
-            margin-bottom: 15px;
-        }
-
-        .otp-expiry {
-            font-size: 13px;
-            color: #737373;
-            font-weight: 500;
-        }
-
-        .btn {
-            display: inline-block;
-            background-color: #3b82f6;
-            color: #ffffff;
-            padding: 14px 32px;
-            border-radius: 10px;
-            font-weight: 600;
+        img {
+            -ms-interpolation-mode: bicubic;
+            border: 0;
+            height: auto;
+            line-height: 100%;
+            outline: none;
             text-decoration: none;
-            font-size: 16px;
-            margin-bottom: 20px;
         }
 
-        .footer {
-            padding: 30px 40px;
-            background-color: #050505;
-            border-top: 1px solid #1a1a1a;
-            text-align: center;
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
         }
 
-        .footer-text {
-            font-size: 12px;
-            color: #525252;
-            line-height: 1.6;
-        }
+        @media only screen and (max-width: 600px) {
+            .container {
+                width: 100% !important;
+                max-width: 100% !important;
+                border-radius: 0 !important;
+                margin-top: 0 !important;
+                border-left: none !important;
+                border-right: none !important;
+            }
 
-        .highlight {
-            color: #3b82f6;
+            .content-pad {
+                padding: 0 24px 32px 24px !important;
+            }
+
+            .header-pad {
+                padding: 28px 24px 16px 24px !important;
+            }
+
+            .footer-pad {
+                padding: 24px !important;
+            }
+
+            .otp-code {
+                font-size: 36px !important;
+                letter-spacing: 6px !important;
+            }
+
+            .otp-box {
+                padding: 20px !important;
+            }
+
+            h1 {
+                font-size: 20px !important;
+            }
+
+            .verify-btn {
+                padding: 12px 24px !important;
+                font-size: 14px !important;
+            }
         }
     </style>
 </head>
 
-<body>
-    <div class="wrapper">
-        <div class="container">
-            <div class="header">
-                <div class="logo">Blinx<span class="highlight">AI</span></div>
-            </div>
-            <div class="content">
-                <h1 th:text="'Verify your ' + ${appName} + ' account'">Verify your account</h1>
-                <p>To securely access your account, please enter the following code on the verification page.</p>
+<body
+    style="margin:0;padding:0;background-color:#000000;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+    <!-- Wrapper -->
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+        style="background-color:#000000;">
+        <tr>
+            <td align="center" style="padding:40px 16px;">
+                <!-- Container -->
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="520" class="container"
+                    style="max-width:520px;width:100%;background-color:#0a0a0a;border:1px solid #1a1a1a;border-radius:20px;overflow:hidden;">
+                    <!-- Header -->
+                    <tr>
+                        <td class="header-pad" style="padding:40px 40px 20px 40px;text-align:center;">
+                            <div
+                                style="font-size:26px;font-weight:800;letter-spacing:-1px;color:#ffffff;margin-bottom:8px;">
+                                Blinx<span style="color:#3b82f6;">AI</span></div>
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td class="content-pad" style="padding:0 40px 40px 40px;text-align:center;">
+                            <h1 style="font-size:24px;font-weight:700;color:#ffffff;margin:0 0 12px 0;"
+                                th:text="'Verify your ' + ${appName} + ' account'">Verify your account</h1>
+                            <p style="font-size:15px;color:#a3a3a3;margin:0 0 30px 0;line-height:1.6;">To securely
+                                access your account, please enter the following code on the verification page.</p>
 
-                <div class="otp-container">
-                    <div class="otp-code" th:text="${otp}">123456</div>
-                    <div class="otp-expiry">This code will expire in <span class="highlight">5 minutes</span>.</div>
-                </div>
+                            <!-- OTP Box -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                                <tr>
+                                    <td class="otp-box"
+                                        style="background-color:#111111;border:1px solid #262626;border-radius:12px;padding:30px;text-align:center;">
+                                        <div class="otp-code"
+                                            style="font-family:'Courier New',Courier,monospace;font-size:48px;font-weight:800;letter-spacing:10px;color:#ffffff;margin-bottom:15px;"
+                                            th:text="${otp}">123456</div>
+                                        <div style="font-size:13px;color:#737373;font-weight:500;">This code will expire
+                                            in <span style="color:#3b82f6;">5 minutes</span>.</div>
+                                    </td>
+                                </tr>
+                            </table>
 
-                <a th:href="${verifyUrl}" class="btn">Verify Now</a>
+                            <!-- CTA Button -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                                style="margin:30px auto 20px auto;">
+                                <tr>
+                                    <td align="center" style="border-radius:10px;background-color:#3b82f6;">
+                                        <a th:href="${verifyUrl}" class="verify-btn"
+                                            style="display:inline-block;padding:14px 32px;font-family:'Inter',-apple-system,sans-serif;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;">Verify
+                                            Now</a>
+                                    </td>
+                                </tr>
+                            </table>
 
-                <div style="font-size: 11px; color: #525252; margin-bottom: 20px; overflow-wrap: break-word;">
-                    Or copy and paste this link: <br>
-                    <span style="word-break: break-all;" th:text="${verifyUrl}">https://blinxAI.me/verify</span>
-                </div>
+                            <!-- Fallback URL -->
+                            <p
+                                style="font-size:11px;color:#525252;margin:0 0 20px 0;word-break:break-all;line-height:1.5;">
+                                Or copy and paste this link:<br>
+                                <span th:text="${verifyUrl}">https://blinxAI.me/verify</span>
+                            </p>
 
-                <div style="font-size: 13px; color: #525252; margin-top: 20px;">
-                    If you didn't request this code, you can safely ignore this email or contact 
-                    <a href="mailto:support@blinxai.me">support@blinxai.me</a>
-                </div>
-            </div>
-            <div class="footer">
-                <div class="footer-text">
-                    This is an automated security message from <span th:text="${appName}">Blinx AI</span>.
-                </div>
-                <div class="footer-text" style="margin-top: 10px;">
-                    © 2026 Blinx AI. All rights reserved.
-                </div>
-            </div>
-        </div>
-    </div>
+                            <!-- Safety note -->
+                            <p style="font-size:13px;color:#525252;margin:20px 0 0 0;line-height:1.5;">
+                                If you didn't request this code, you can safely ignore this email or contact
+                                <a href="mailto:support@blinxai.me"
+                                    style="color:#3b82f6;text-decoration:none;">support@blinxai.me</a>
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td class="footer-pad"
+                            style="padding:30px 40px;background-color:#050505;border-top:1px solid #1a1a1a;text-align:center;">
+                            <p style="font-size:12px;color:#525252;margin:0 0 10px 0;line-height:1.6;">
+                                This is an automated security message from <span th:text="${appName}">Blinx AI</span>.
+                            </p>
+                            <p style="font-size:12px;color:#525252;margin:0;line-height:1.6;">
+                                &copy; 2026 Blinx AI. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 
 </html>

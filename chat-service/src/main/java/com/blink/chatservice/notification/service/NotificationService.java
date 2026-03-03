@@ -10,4 +10,6 @@ public interface NotificationService {
     String maskEmail(String email);
     String maskIdentifier(String identifier);
     void sendWelcomeGreeting(String identifier, String userName);
+    void sendAccountActionNotification(String email, String userName, String actionType);
+    void sendNewMessageNotification(String recipientEmail, String recipientName, String senderName, String messagePreview);
 }

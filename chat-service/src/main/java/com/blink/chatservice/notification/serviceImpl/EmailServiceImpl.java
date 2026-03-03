@@ -86,14 +86,16 @@ public class EmailServiceImpl implements EmailService {
 
     @Async
     @Override
-    public void sendNewMessageEmail(String to, String preview, String appName) {
+    public void sendNewMessageEmail(String to, String userName, String senderName, String messageContent) {
         try {
             Context context = new Context();
-            context.setVariable("preview", preview);
+            context.setVariable("userName", userName);
+            context.setVariable("messageContent", messageContent);
             context.setVariable("appName", appName);
+            context.setVariable("supportEmail", supportEmail);
             String htmlContent = templateEngine.process("message-email", context);
 
-            sendBrevoEmail(senderEmail, to, "New Message on " + appName, htmlContent);
+            sendBrevoEmail(senderEmail, to, "New message from " + senderName + " on " + appName, htmlContent);
         } catch (Exception e) {
             log.error("Unexpected error sending new message email to {}: {}", to, e.getMessage(), e);
         }
@@ -110,7 +112,7 @@ public class EmailServiceImpl implements EmailService {
             Context context = new Context();
             context.setVariable("subject", subject);
             String formattedBody = body != null ? body.replace("\n", "<br/>") : "";
-            context.setVariable("bodyContent", formattedBody);
+            context.setVariable("body", formattedBody);
 
             String htmlContent;
             try {
@@ -192,6 +194,99 @@ public class EmailServiceImpl implements EmailService {
             sendBrevoEmail(senderEmail, to, "Welcome to " + appName + "!", htmlContent);
         } catch (Exception e) {
             log.error("Unexpected error sending greeting email to {}: {}", to, e.getMessage(), e);
+        }
+    }
+
+    @Async
+    @Override
+    public void sendAccountActionEmail(String to, String userName, String actionType) {
+        if (to == null || to.trim().isEmpty()) {
+            log.error("Cannot send account action email: email is null/empty");
+            return;
+        }
+
+        try {
+            Context context = new Context();
+            context.setVariable("supportEmail", supportEmail);
+            context.setVariable("accountEmail", accountEmail);
+
+            String subject;
+            switch (actionType) {
+                case "ACCOUNT_DELETED" -> {
+                    subject = "Account Deleted — " + appName;
+                    context.setVariable("title", "Account Deleted");
+                    context.setVariable("badgeClass", "action-badge badge-delete");
+                    context.setVariable("badgeText", "DELETED");
+                    context.setVariable("mainMessage", "Hi " + userName + ", your Blinx AI account has been permanently deleted as per your request.");
+                    context.setVariable("cardTitle", "What this means");
+                    context.setVariable("details", java.util.List.of(
+                        "All your conversations and messages have been removed",
+                        "Your profile data has been erased from our servers",
+                        "Any linked Google account has been disconnected",
+                        "This action is irreversible"
+                    ));
+                    context.setVariable("showWarning", true);
+                    context.setVariable("warningMessage", "If you did not request this deletion, please contact us immediately.");
+                }
+                case "ACCOUNT_DEACTIVATED" -> {
+                    subject = "Account Deactivated — " + appName;
+                    context.setVariable("title", "Account Deactivated");
+                    context.setVariable("badgeClass", "action-badge badge-deactivate");
+                    context.setVariable("badgeText", "DEACTIVATED");
+                    context.setVariable("mainMessage", "Hi " + userName + ", your Blinx AI account has been deactivated. You can reactivate it by logging in again.");
+                    context.setVariable("cardTitle", "What this means");
+                    context.setVariable("details", java.util.List.of(
+                        "Your profile will not appear in search results",
+                        "You will not receive new messages or calls",
+                        "Your data is preserved and will be restored on login",
+                        "Log in anytime to reactivate your account"
+                    ));
+                    context.setVariable("showWarning", false);
+                    context.setVariable("warningMessage", "");
+                }
+                case "GOOGLE_DISCONNECTED" -> {
+                    subject = "Google Account Disconnected — " + appName;
+                    context.setVariable("title", "Google Disconnected");
+                    context.setVariable("badgeClass", "action-badge badge-disconnect");
+                    context.setVariable("badgeText", "DISCONNECTED");
+                    context.setVariable("mainMessage", "Hi " + userName + ", your Google account has been disconnected from Blinx AI.");
+                    context.setVariable("cardTitle", "What this means");
+                    context.setVariable("details", java.util.List.of(
+                        "You can no longer send emails through Blinx AI",
+                        "Google Calendar sync is disabled",
+                        "Your Blinx AI account is still active",
+                        "You can reconnect Google anytime from Settings"
+                    ));
+                    context.setVariable("showWarning", false);
+                    context.setVariable("warningMessage", "");
+                }
+                case "GOOGLE_REVOKED" -> {
+                    subject = "Google Access Revoked — " + appName;
+                    context.setVariable("title", "Google Access Revoked");
+                    context.setVariable("badgeClass", "action-badge badge-revoke");
+                    context.setVariable("badgeText", "REVOKED");
+                    context.setVariable("mainMessage", "Hi " + userName + ", all Google permissions for Blinx AI have been revoked. Your Google tokens have been cleared.");
+                    context.setVariable("cardTitle", "What this means");
+                    context.setVariable("details", java.util.List.of(
+                        "All stored Google tokens have been deleted",
+                        "Blinx AI no longer has access to your Gmail or Calendar",
+                        "You'll need to re-authorize Google to use email/calendar features",
+                        "Your Blinx AI account remains active"
+                    ));
+                    context.setVariable("showWarning", true);
+                    context.setVariable("warningMessage", "If you didn't perform this action, secure your Google account immediately.");
+                }
+                default -> {
+                    log.error("Unknown account action type: {}", actionType);
+                    return;
+                }
+            }
+
+            String htmlContent = templateEngine.process("account-action-mail", context);
+            sendBrevoEmail(accountEmail, to, subject, htmlContent);
+            log.info("Account action email ({}) sent to: {}", actionType, to);
+        } catch (Exception e) {
+            log.error("Failed to send account action email ({}) to {}: {}", actionType, to, e.getMessage(), e);
         }
     }
 

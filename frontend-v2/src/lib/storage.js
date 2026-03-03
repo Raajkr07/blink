@@ -4,6 +4,8 @@ const STORAGE_KEYS = {
     USER: 'blink_user',
     THEME: 'blink_theme',
     AI_SUGGESTIONS: 'blink_ai_suggestions',
+    EMAIL_NOTIFICATIONS: 'blink_email_notifications',
+    SLASH_COMMANDS: 'blink_slash_commands',
     ONLINE_PANEL_HEIGHT: 'blink_online_panel_height',
     ONLINE_PANEL_OPEN: 'blink_online_panel_open',
     SIDEBAR_COLLAPSED: 'blink_sidebar_collapsed',

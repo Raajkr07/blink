@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion as Motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { callService } from '../../services';
 import { queryKeys } from '../../lib/queryClient';
 import { useAuthStore, useCallStore } from '../../stores';
@@ -79,7 +79,19 @@ export function CallLogs() {
     const { data: historyData, isLoading, error, refetch } = useQuery({
         queryKey: queryKeys.callHistory(queryParams),
         queryFn: () => callService.getCallHistory(queryParams),
+        refetchOnWindowFocus: true,
     });
+
+    // Refresh call logs in real-time when a call ends
+    const queryClient = useQueryClient();
+    const lastCallOutcome = useCallStore(state => state.lastCallOutcome);
+    useEffect(() => {
+        if (lastCallOutcome) {
+            // Invalidate all call history queries so every filter tab refreshes
+            queryClient.invalidateQueries({ queryKey: ['callHistory'] });
+            queryClient.invalidateQueries({ queryKey: ['activeCalls'] });
+        }
+    }, [lastCallOutcome, queryClient]);
 
     const callLogs = historyData?.calls || [];
     const totalPages = historyData?.totalPages || 0;
@@ -116,25 +128,56 @@ export function CallLogs() {
     };
 
     const getStatusBadge = (call) => {
-        const isMissed = call.status === 'MISSED';
-        const isRejected = call.status === 'REJECTED';
+        const status = call.status?.toUpperCase();
         const isIncoming = call.receiverId === user?.id;
 
-        if (isMissed) return (
-            <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[10px] font-bold uppercase tracking-wider">
-                Missed
-            </span>
-        );
-        if (isRejected) return (
-            <span className="px-2 py-0.5 rounded-full bg-[var(--color-border)] text-[var(--color-gray-500)] text-[10px] font-bold uppercase tracking-wider">
-                {isIncoming ? 'Declined' : 'Rejected'}
-            </span>
-        );
-        return (
-            <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-bold uppercase tracking-wider">
-                Completed
-            </span>
-        );
+        switch (status) {
+            case 'MISSED':
+                return (
+                    <span className="px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 text-[10px] font-bold uppercase tracking-wider">
+                        Missed
+                    </span>
+                );
+            case 'REJECTED':
+                return (
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--color-border)] text-[var(--color-gray-500)] text-[10px] font-bold uppercase tracking-wider">
+                        {isIncoming ? 'Declined' : 'Rejected'}
+                    </span>
+                );
+            case 'CANCELLED':
+                return (
+                    <span className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 text-[10px] font-bold uppercase tracking-wider">
+                        Cancelled
+                    </span>
+                );
+            case 'ENDED':
+                return (
+                    <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-bold uppercase tracking-wider">
+                        Completed
+                    </span>
+                );
+            case 'RINGING':
+            case 'ACTIVE':
+                return (
+                    <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-bold uppercase tracking-wider animate-pulse">
+                        {status === 'RINGING' ? 'Ringing' : 'Active'}
+                    </span>
+                );
+            default:
+                // Fallback: if answeredAt exists, it completed; otherwise it was missed
+                if (call.answeredAt) {
+                    return (
+                        <span className="px-2 py-0.5 rounded-full bg-green-500/10 text-green-500 text-[10px] font-bold uppercase tracking-wider">
+                            Completed
+                        </span>
+                    );
+                }
+                return (
+                    <span className="px-2 py-0.5 rounded-full bg-[var(--color-border)] text-[var(--color-gray-500)] text-[10px] font-bold uppercase tracking-wider">
+                        {status || 'Unknown'}
+                    </span>
+                );
+        }
     };
 
     const getOtherUserId = (call) => {

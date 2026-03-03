@@ -5,12 +5,15 @@ import com.blink.chatservice.chat.entity.Message;
 import com.blink.chatservice.chat.model.ConversationType;
 import com.blink.chatservice.chat.repository.ConversationRepository;
 import com.blink.chatservice.chat.repository.MessageRepository;
+import com.blink.chatservice.notification.service.NotificationService;
+import com.blink.chatservice.user.entity.User;
 import com.blink.chatservice.user.repository.UserRepository;
 import com.blink.chatservice.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -22,7 +25,6 @@ import java.time.ZoneId;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class ChatServiceImpl implements ChatService {
 
     private final ConversationRepository conversationRepository;
@@ -30,6 +32,23 @@ public class ChatServiceImpl implements ChatService {
     private final UserRepository userRepository;
     private final UserService userService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final NotificationService notificationService;
+
+    public ChatServiceImpl(
+            ConversationRepository conversationRepository,
+            MessageRepository messageRepository,
+            UserRepository userRepository,
+            UserService userService,
+            SimpMessagingTemplate messagingTemplate,
+            @Lazy NotificationService notificationService
+    ) {
+        this.conversationRepository = conversationRepository;
+        this.messageRepository = messageRepository;
+        this.userRepository = userRepository;
+        this.userService = userService;
+        this.messagingTemplate = messagingTemplate;
+        this.notificationService = notificationService;
+    }
 
     @Tool(name = "createConversation", description = "Create a direct conversation with a user.")
     @Override
@@ -162,6 +181,35 @@ public class ChatServiceImpl implements ChatService {
         conversationRepository.save(conv);
 
         broadcast(saved);
+
+        // Send email notification to offline recipients in direct conversations
+        if (conv.getType() == ConversationType.DIRECT && saved.getRecipientId() != null) {
+            try {
+                User recipient = userRepository.findById(saved.getRecipientId()).orElse(null);
+                
+                if (recipient != null && !recipient.isOnline() && recipient.isEmailNotificationsEnabled() && recipient.getEmail() != null && !recipient.getEmail().isBlank()) {
+                    boolean canSend = recipient.getLastOfflineNotificationSentAt() == null ||
+                            recipient.getLastOfflineNotificationSentAt().isBefore(LocalDateTime.now(ZoneId.of("UTC")).minusHours(24));
+                            
+                    if (canSend) {
+                        User sender = userRepository.findById(senderId).orElse(null);
+                        String senderName = sender != null ? sender.getUsername() : "Someone";
+                        String preview = saved.getBody().length() > 200 ? saved.getBody().substring(0, 200) + "..." : saved.getBody();
+                        
+                        String warmSummary = String.format("Hey! %s is missing you and sent a message:\n\n\"%s\"", senderName, preview);
+                        
+                        notificationService.sendNewMessageNotification(recipient.getEmail(), recipient.getUsername(), senderName, warmSummary);
+                        
+                        // Track that we sent it so we don't spam them today
+                        recipient.setLastOfflineNotificationSentAt(LocalDateTime.now(ZoneId.of("UTC")));
+                        userRepository.save(recipient);
+                    }
+                }
+            } catch (Exception e) {
+                // Don't fail the message send if notification fails
+            }
+        }
+
         return saved;
     }
 

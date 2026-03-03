@@ -44,7 +44,8 @@ public class UserController {
                 request.getAvatarUrl(),
                 request.getBio(),
                 request.getEmail(),
-                request.getPhone()
+                request.getPhone(),
+                request.getEmailNotificationsEnabled()
         );
         return ResponseEntity.ok(updated);
     }
@@ -65,5 +66,21 @@ public class UserController {
         }
         List<User> users = userRepository.findAllById(ids);
         return ResponseEntity.ok(users);
+    }
+
+    @DeleteMapping("/me")
+    @Operation(summary = "Permanently delete current user account")
+    public ResponseEntity<Void> deleteAccount(Authentication authentication) {
+        String userId = authentication.getName();
+        userService.deleteAccount(userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/me/deactivate")
+    @Operation(summary = "Deactivate current user account")
+    public ResponseEntity<Void> deactivateAccount(Authentication authentication) {
+        String userId = authentication.getName();
+        userService.deactivateAccount(userId);
+        return ResponseEntity.ok().build();
     }
 }

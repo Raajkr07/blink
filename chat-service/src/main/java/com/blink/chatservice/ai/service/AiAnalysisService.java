@@ -63,9 +63,26 @@ public class AiAnalysisService {
 
         return callAi(context, AutoReplySuggestions.class,
                 """
-                Generate 3-5 auto-replies. Return JSON:
+                You are a smart reply assistant for a real-time chat app.
+                Generate 8-10 contextual auto-reply suggestions for the given message.
+
+                Return JSON:
                 {"suggested_replies":["str"]}
-                Rules: 5-10 words each, complete sentences, match tone, no repetition.
+
+                Rules:
+                - Each reply: 2-8 words, natural and conversational
+                - Include a relevant emoji at the start or end of each reply where it fits naturally, don't use in every reply, Use it only if it adds value to the reply
+                - Cover diverse INTENTS across these categories:
+                  1. Acknowledgement (e.g. "Got it 👍", "Noted ✅")
+                  2. Agreement/Positive (e.g. "Sounds great! 🎉", "Absolutely 💯")
+                  3. Follow-up question (e.g. "When do you need it? ⏰")
+                  4. Action/Commitment (e.g. "I'll handle it 🙌", "On it! 🚀")
+                  5. Emoji reaction (e.g. "😂", "❤️", "🔥")
+                  6. Emotional/Empathetic (e.g. "That's awesome! 🙏", "Oh no, sorry to hear 😔")
+                  7. Casual/Friendly (e.g. "Haha nice 😄", "Cool cool 😎")
+                - Match the tone and language of the original message
+                - No repetitive or generic filler replies
+                - Replies must feel like what a real person would tap to send
                 """);
     }
 
@@ -183,6 +200,6 @@ public class AiAnalysisService {
 
     public AutoReplySuggestions suggestFallback(Message lastMessage, Throwable t) {
         log.error("AI suggest circuit breaker active: {}", t.getMessage());
-        return new AutoReplySuggestions(List.of("Okay", "Understood"), "Suggestions currently unavailable.");
+        return new AutoReplySuggestions(List.of("Got it 👍", "Okay 👌", "Sure thing ✅", "Thanks 🙏", "Sounds good 😊", "On it! 🚀", "Noted 📝", "❤️"), "Suggestions currently unavailable.");
     }
 }

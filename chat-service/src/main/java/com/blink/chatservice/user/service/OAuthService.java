@@ -2,6 +2,7 @@ package com.blink.chatservice.user.service;
 
 import com.blink.chatservice.config.GoogleOAuthConfig;
 import com.blink.chatservice.config.JwtConfig;
+import com.blink.chatservice.notification.service.NotificationService;
 import com.blink.chatservice.security.JwtUtil;
 import com.blink.chatservice.user.entity.OAuth2Credential;
 import com.blink.chatservice.user.entity.User;
@@ -12,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.encrypt.Encryptors;
@@ -50,6 +52,7 @@ public class OAuthService {
     private final RestClient restClient;
     @SuppressWarnings("unused")
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
     private TextEncryptor encryptor;
 
@@ -61,7 +64,8 @@ public class OAuthService {
             JwtUtil jwtUtil,
             JwtConfig jwtConfig,
             @Qualifier("googleApiRestClient") RestClient restClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            @Lazy NotificationService notificationService
     ) {
         this.googleConfig = googleConfig;
         this.userRepository = userRepository;
@@ -71,6 +75,7 @@ public class OAuthService {
         this.jwtConfig = jwtConfig;
         this.restClient = restClient;
         this.objectMapper = objectMapper;
+        this.notificationService = notificationService;
     }
 
     @PostConstruct
@@ -177,6 +182,8 @@ public class OAuthService {
             user.setEmail(email);
             user.setCreatedAt(LocalDateTime.now(ZoneId.of("UTC")));
             isNewUser = true;
+        } else if (user.isPendingDeletion()) {
+            throw new IllegalStateException("Account is scheduled for deletion. To recover your account, please contact account@blinxai.me within 7 hours of deletion request.");
         }
         
         // 1. Username protection
@@ -218,6 +225,11 @@ public class OAuthService {
         credentialRepository.save(credential);
 
         String appToken = jwtUtil.generateToken(user);
+
+        // Send welcome greeting for new OAuth users
+        if (isNewUser) {
+            notificationService.sendWelcomeGreeting(email, user.getUsername());
+        }
         
         Map<String, String> result = new HashMap<>();
         result.put("token", appToken);

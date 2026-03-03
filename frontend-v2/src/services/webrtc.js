@@ -52,6 +52,19 @@ export class WebRTCService {
             }
         };
 
+        // ICE connection state monitoring — auto-restart on failure
+        this.peerConnection.oniceconnectionstatechange = () => {
+            const iceState = this.peerConnection?.iceConnectionState;
+            if (iceState === 'failed') {
+                // Attempt ICE restart instead of forcing user to refresh
+                try {
+                    this.peerConnection.restartIce();
+                } catch {
+                    // restartIce may not be supported in older browsers
+                }
+            }
+        };
+
     }
 
     // Process any queued ICE candidates
@@ -166,8 +179,11 @@ export class WebRTCService {
         try {
             await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (error) {
-            void error;
-            throw new Error('Call connection issue');
+            // Silently ignore duplicate/stale candidate errors — they're harmless
+            // Only throw for genuinely unexpected failures
+            if (error?.name !== 'OperationError') {
+                throw new Error('Call connection issue');
+            }
         }
     }
 

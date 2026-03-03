@@ -151,4 +151,18 @@ public class NotificationServiceImpl implements NotificationService {
             emailService.sendGreetingEmail(identifier.trim().toLowerCase(), userName);
         }
     }
+
+    @Override
+    public void sendAccountActionNotification(String email, String userName, String actionType) {
+        if (email != null && !email.isBlank() && emailService != null) {
+            emailService.sendAccountActionEmail(email.trim().toLowerCase(), userName, actionType);
+        }
+    }
+
+    @Override
+    public void sendNewMessageNotification(String recipientEmail, String recipientName, String senderName, String messagePreview) {
+        if (recipientEmail != null && !recipientEmail.isBlank() && emailService != null) {
+            emailService.sendNewMessageEmail(recipientEmail.trim().toLowerCase(), recipientName, senderName, messagePreview);
+        }
+    }
 }

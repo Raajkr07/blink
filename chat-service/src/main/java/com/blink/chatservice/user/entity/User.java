@@ -35,8 +35,14 @@ public class User implements Serializable {
     private boolean avatarManual = false;
     private boolean usernameManual = false;
     private boolean online = false;
+    private boolean active = true;
+    private boolean pendingDeletion = false;
+    private LocalDateTime deletionScheduledAt;
     private LocalDateTime lastSeen;
     private Set<String> devices = new HashSet<>();
     @Indexed
     private LocalDateTime createdAt = LocalDateTime.now(ZoneId.of("UTC"));
+
+    private boolean emailNotificationsEnabled = true;
+    private LocalDateTime lastOfflineNotificationSentAt;
 }

@@ -3,13 +3,39 @@ import { persist } from 'zustand/middleware';
 
 export const useChatStore = create(
     persist(
-        (set) => ({
+        (set, get) => ({
             activeConversationId: null,
             typingUsers: {},
             optimisticMessages: {},
             pendingOutbox: {},
             searchQuery: '',
             searchResults: [],
+
+            // ── Unread counts ────────────────────────────────────────
+            // { [conversationId]: number }
+            unreadCounts: {},
+
+            incrementUnread: (conversationId) =>
+                set((state) => ({
+                    unreadCounts: {
+                        ...state.unreadCounts,
+                        [conversationId]: (state.unreadCounts[conversationId] || 0) + 1,
+                    },
+                })),
+
+            clearUnread: (conversationId) =>
+                set((state) => {
+                    if (!state.unreadCounts[conversationId]) return state;
+                    const { [conversationId]: _, ...rest } = state.unreadCounts;
+                    return { unreadCounts: rest };
+                }),
+
+            totalUnread: () => {
+                const counts = get().unreadCounts;
+                return Object.values(counts).reduce((sum, c) => sum + c, 0);
+            },
+
+            // ── Standard actions ─────────────────────────────────────
             setActiveConversation: (conversationId) =>
                 set({ activeConversationId: conversationId }),
 
@@ -89,9 +115,6 @@ export const useChatStore = create(
                     // Deduplicate
                     if (current.some(m => m.id === normalizedMsg.id)) return state;
 
-                    // If a live message matches the text of an optimistic message,
-                    // we might want to clear the optimistic. For simplicity, 
-                    // we just let the UI sort it out or the sender cleans it via tempId later.
                     // Cap live messages at 50 per conversation to prevent memory leak
                     const updated = [...current, normalizedMsg];
                     const capped = updated.length > 50 ? updated.slice(-50) : updated;
@@ -142,6 +165,7 @@ export const useChatStore = create(
             partialize: (state) => ({
                 optimisticMessages: state.optimisticMessages,
                 pendingOutbox: state.pendingOutbox,
+                unreadCounts: state.unreadCounts,
             }),
         }
     )
