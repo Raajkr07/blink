@@ -4,5 +4,5 @@
     X-Frame-Options = "SAMEORIGIN"
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.blinxai.me; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: https://th.bing.com https://lh3.googleusercontent.com https://encrypted-tbn0.gstatic.com; font-src 'self' data: https://r2cdn.perplexity.ai; frame-src 'self' https://api.blinxai.me; connect-src 'self' ws: wss: https: https://api.blinxai.me;"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://api.blinxai.me https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: https://th.bing.com https://lh3.googleusercontent.com https://encrypted-tbn0.gstatic.com; font-src 'self' data: https://r2cdn.perplexity.ai; frame-src 'self' https://api.blinxai.me https://challenges.cloudflare.com; connect-src 'self' ws: wss: https: https://api.blinxai.me;"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"

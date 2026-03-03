@@ -49,7 +49,7 @@ public class SecurityConfig {
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(31536000))
                         .contentSecurityPolicy(csp -> csp
-                                .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' https://api.blinxai.me; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https://r2cdn.perplexity.ai; frame-ancestors 'self' https://blinxai.me https://www.blinxai.me https://blinx-app.netlify.app; connect-src 'self' ws: wss: https: https://api.blinxai.me;")
+                                .policyDirectives("default-src 'self'; script-src 'self' 'unsafe-inline' https://api.blinxai.me https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https://r2cdn.perplexity.ai; frame-src 'self' https://challenges.cloudflare.com; frame-ancestors 'self' https://blinxai.me https://www.blinxai.me https://blinx-app.netlify.app; connect-src 'self' ws: wss: https: https://api.blinxai.me;")
                         )
                 )
                 .authorizeHttpRequests(auth -> auth
