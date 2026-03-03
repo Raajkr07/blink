@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Turnstile } from '@marsidev/react-turnstile';
 import { useMutation } from '@tanstack/react-query';
 import { motion as Motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -9,7 +8,7 @@ import { useAuthStore } from '../stores/authStore';
 import { Button, Input, GoogleButton } from '../components/ui';
 import { reportErrorOnce } from '../lib/reportError';
 
-export function Signup({ onSwitchToLogin, initialIdentifier }) {
+export function Signup({ onSwitchToLogin, initialIdentifier, turnstileToken, turnstileRef }) {
     const [step, setStep] = useState(() => {
         const params = new URLSearchParams(window.location.search);
         const hasDirectAuth = params.get('otp') || params.get('v');
@@ -43,7 +42,6 @@ export function Signup({ onSwitchToLogin, initialIdentifier }) {
         return params.get('otp') || '';
     });
     const [profile, setProfile] = useState({ username: '', bio: '' });
-    const [turnstileToken, setTurnstileToken] = useState('');
     const { setUser, setTokens } = useAuthStore();
     const navigate = useNavigate();
 
@@ -55,6 +53,8 @@ export function Signup({ onSwitchToLogin, initialIdentifier }) {
         onSuccess: () => {
             toast.success('OTP sent');
             setStep('otp');
+            // Reset Turnstile after successful use so token is fresh for retries
+            turnstileRef?.current?.reset();
         },
         onError: (error) => {
             const message = error?.response?.data?.message || error?.message;
@@ -64,6 +64,7 @@ export function Signup({ onSwitchToLogin, initialIdentifier }) {
             } else {
                 toast.error('Failed to send OTP');
             }
+            turnstileRef?.current?.reset();
         }
     });
 
@@ -140,13 +141,6 @@ export function Signup({ onSwitchToLogin, initialIdentifier }) {
                             onChange={(e) => setIdentifier(e.target.value)}
                             placeholder="Email or Phone Number"
                         />
-                        <div className="mt-4 flex justify-center items-center">
-                            <Turnstile
-                                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                                onSuccess={(token) => setTurnstileToken(token)}
-                                options={{ theme: 'dark' }}
-                            />
-                        </div>
                         <Button type="submit" className="w-full" loading={requestOtpMutation.isPending}>
                             Continue
                         </Button>

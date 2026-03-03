@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { Login } from './Login';
@@ -32,11 +33,21 @@ const AuthPage = () => {
     });
     const [isHovered, setIsHovered] = useState(false);
 
+    // Single Turnstile instance shared between Login and Signup
+    const [turnstileToken, setTurnstileToken] = useState('');
+    const turnstileRef = useRef(null);
+
     useEffect(() => {
         if (isAuthenticated) {
             navigate('/chat', { replace: true });
         }
     }, [isAuthenticated, navigate]);
+
+    // Reset token when switching modes so stale tokens aren't reused
+    useEffect(() => {
+        setTurnstileToken('');
+        turnstileRef.current?.reset();
+    }, [mode]);
 
     return (
         <main className="min-h-screen w-full bg-black flex items-center justify-center p-4 relative overflow-hidden">
@@ -131,7 +142,12 @@ const AuthPage = () => {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: 20 }}
                         >
-                            <Login onSwitchToSignup={() => setMode('signup')} initialIdentifier={initialIdentifier} />
+                            <Login
+                                onSwitchToSignup={() => setMode('signup')}
+                                initialIdentifier={initialIdentifier}
+                                turnstileToken={turnstileToken}
+                                turnstileRef={turnstileRef}
+                            />
                         </Motion.div>
                     ) : (
                         <Motion.div
@@ -140,10 +156,30 @@ const AuthPage = () => {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
                         >
-                            <Signup onSwitchToLogin={() => setMode('login')} initialIdentifier={initialIdentifier} />
+                            <Signup
+                                onSwitchToLogin={() => setMode('login')}
+                                initialIdentifier={initialIdentifier}
+                                turnstileToken={turnstileToken}
+                                turnstileRef={turnstileRef}
+                            />
                         </Motion.div>
                     )}
                 </AnimatePresence>
+
+                {/* Single shared Turnstile widget — rendered once, never remounted */}
+                <div className="mt-4 flex justify-center items-center">
+                    <Turnstile
+                        ref={turnstileRef}
+                        siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                        onSuccess={(token) => setTurnstileToken(token)}
+                        onError={() => setTurnstileToken('')}
+                        onExpire={() => {
+                            setTurnstileToken('');
+                            turnstileRef.current?.reset();
+                        }}
+                        options={{ theme: 'dark', size: 'flexible' }}
+                    />
+                </div>
             </div>
 
         </main >

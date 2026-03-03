@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Turnstile } from '@marsidev/react-turnstile';
 import { useMutation } from '@tanstack/react-query';
 import { motion as Motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -9,11 +8,10 @@ import { useAuthStore } from '../stores/authStore';
 import { reportSuccess } from '../lib/reportError';
 import { Button, Input, GoogleButton } from '../components/ui';
 
-export function Login({ onSwitchToSignup, initialIdentifier }) {
+export function Login({ onSwitchToSignup, initialIdentifier, turnstileToken, turnstileRef }) {
     const [step, setStep] = useState('phone');
     const [identifier, setIdentifier] = useState(initialIdentifier || '');
     const [otp, setOtp] = useState('');
-    const [turnstileToken, setTurnstileToken] = useState('');
     const { setUser, setTokens } = useAuthStore();
     const navigate = useNavigate();
 
@@ -25,6 +23,8 @@ export function Login({ onSwitchToSignup, initialIdentifier }) {
         onSuccess: (data) => {
             toast.success(data.message || 'OTP sent successfully');
             setStep('otp');
+            // Reset Turnstile after successful use so token is fresh for retries
+            turnstileRef?.current?.reset();
         },
         onError: (error) => {
             const message = error?.response?.data?.message || error?.message;
@@ -34,6 +34,7 @@ export function Login({ onSwitchToSignup, initialIdentifier }) {
             } else {
                 toast.error('Failed to send OTP');
             }
+            turnstileRef?.current?.reset();
         }
     });
 
@@ -107,13 +108,6 @@ export function Login({ onSwitchToSignup, initialIdentifier }) {
                             disabled={requestOtpMutation.isPending}
                             placeholder="Email or Phone Number"
                         />
-                        <div className="mt-4 flex justify-center items-center">
-                            <Turnstile
-                                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
-                                onSuccess={(token) => setTurnstileToken(token)}
-                                options={{ theme: 'dark' }}
-                            />
-                        </div>
                         <Button
                             type="submit"
                             className="w-full mt-4"
