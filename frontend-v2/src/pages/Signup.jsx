@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { useMutation } from '@tanstack/react-query';
 import { motion as Motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -42,13 +43,14 @@ export function Signup({ onSwitchToLogin, initialIdentifier }) {
         return params.get('otp') || '';
     });
     const [profile, setProfile] = useState({ username: '', bio: '' });
+    const [turnstileToken, setTurnstileToken] = useState('');
     const { setUser, setTokens } = useAuthStore();
     const navigate = useNavigate();
 
     const requestOtpMutation = useMutation({
         mutationFn: () => {
             const normalized = identifier.trim().includes('@') ? identifier.trim().toLowerCase() : identifier.trim();
-            return authService.requestOtp(normalized, 'signup');
+            return authService.requestOtp(normalized, 'signup', turnstileToken);
         },
         onSuccess: () => {
             toast.success('OTP sent');
@@ -98,6 +100,7 @@ export function Signup({ onSwitchToLogin, initialIdentifier }) {
         e.preventDefault();
         if (step === 'phone') {
             if (!identifier.trim()) return toast.error('Enter contact details');
+            if (!turnstileToken) return toast.error('Please complete the captcha');
             requestOtpMutation.mutate();
         } else if (step === 'otp') {
             if (!otp.trim()) return toast.error('Enter OTP');
@@ -137,6 +140,13 @@ export function Signup({ onSwitchToLogin, initialIdentifier }) {
                             onChange={(e) => setIdentifier(e.target.value)}
                             placeholder="Email or Phone Number"
                         />
+                        <div className="mt-4 flex justify-center items-center" style={{ minHeight: '65px' }}>
+                            <Turnstile
+                                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                                onSuccess={(token) => setTurnstileToken(token)}
+                                options={{ theme: 'dark' }}
+                            />
+                        </div>
                         <Button type="submit" className="w-full" loading={requestOtpMutation.isPending}>
                             Continue
                         </Button>

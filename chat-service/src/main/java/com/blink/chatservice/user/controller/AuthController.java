@@ -3,6 +3,7 @@ package com.blink.chatservice.user.controller;
 import com.blink.chatservice.notification.service.NotificationService;
 import com.blink.chatservice.security.JwtUtil;
 import com.blink.chatservice.security.TokenDenylistService;
+import com.blink.chatservice.security.TurnstileService;
 import com.blink.chatservice.user.dto.AuthDto.*;
 import com.blink.chatservice.user.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +30,7 @@ public class AuthController {
     private final NotificationService notificationService;
     private final TokenDenylistService denylistService;
     private final JwtUtil jwtUtil;
+    private final TurnstileService turnstileService;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -36,6 +38,10 @@ public class AuthController {
     @Operation(summary = "Request OTP for signup/login", description = "Send OTP to phone/email. Creates/Signup user if new.")
     @PostMapping("/request-otp")
     public ResponseEntity<OtpResponse> requestOtp(@Valid @RequestBody OtpRequest request) {
+        if (!turnstileService.verifyToken(request.turnstileToken())) {
+            return ResponseEntity.status(403).body(new OtpResponse("Invalid verification"));
+        }
+
         String identifier = request.identifier().trim();
         String otp = userService.requestOtp(identifier, request.intent());
 

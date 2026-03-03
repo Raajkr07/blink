@@ -46,16 +46,18 @@ const AuthPage = () => {
             </div>
 
             {/* Google Features Info Icon - Top Right */}
-            <div className="fixed right-6 top-6 z-50 flex flex-col items-end gap-3">
+            <div
+                className="fixed right-6 top-6 z-50 flex flex-col items-end gap-3"
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+            >
                 <Motion.button
                     type="button"
                     aria-label="Show Google features information"
-                    onHoverStart={() => setIsHovered(true)}
-                    onHoverEnd={() => setIsHovered(false)}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300",
+                        "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 relative z-10",
                         "glass border border-white/10 hover:border-blue-500/50 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]",
                         isHovered ? "bg-blue-500/20" : "bg-white/5"
                     )}
@@ -73,7 +75,7 @@ const AuthPage = () => {
                             initial={{ opacity: 0, y: -10, scale: 0.95 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                            className="w-72 glass-strong p-6 rounded-2xl border border-white/10 shadow-2xl relative mt-2"
+                            className="w-72 glass-strong p-6 rounded-2xl border border-white/10 shadow-2xl relative mt-2 pointer-events-auto"
                         >
                             <div className="absolute right-4 top-[-8px] w-4 h-4 glass-strong rotate-45 border-t border-l border-white/10" />
                             <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-3">
@@ -95,6 +97,14 @@ const AuthPage = () => {
                                     <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-[10px]">📅</div>
                                 </div>
                                 <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Ready for Action</span>
+                            </div>
+
+                            <div className="mt-4 pt-4 border-t border-white/5 flex flex-col gap-2">
+                                <Link to="/privacy-policy" className="text-center hover:text-blue-400 transition-all duration-300 glass hover:bg-white/10 px-4 py-2 rounded-full border border-white/5 hover:border-blue-500/30 text-[10px] uppercase tracking-widest text-slate-400 font-bold">Privacy</Link>
+                                <Link to="/terms" className="text-center hover:text-blue-400 transition-all duration-300 glass hover:bg-white/10 px-4 py-2 rounded-full border border-white/5 hover:border-blue-500/30 text-[10px] uppercase tracking-widest text-slate-400 font-bold">Terms</Link>
+                                <Link to="/data-deletion" className="text-center hover:text-blue-400 transition-all duration-300 glass hover:bg-white/10 px-4 py-2 rounded-full border border-white/5 hover:border-blue-500/30 text-[10px] uppercase tracking-widest text-slate-400 font-bold">Data Deletion</Link>
+                                <Link to="/docs" className="text-center hover:text-blue-400 transition-all duration-300 glass hover:bg-white/10 px-4 py-2 rounded-full border border-white/5 hover:border-blue-500/30 text-[10px] uppercase tracking-widest text-slate-400 font-bold">Docs</Link>
+                                <Link to="/blog" className="text-center hover:text-blue-400 transition-all duration-300 glass hover:bg-white/10 px-4 py-2 rounded-full border border-white/5 hover:border-blue-500/30 text-[10px] uppercase tracking-widest text-slate-400 font-bold">Blog</Link>
                             </div>
                         </Motion.div>
                     )}
@@ -136,12 +146,7 @@ const AuthPage = () => {
                 </AnimatePresence>
             </div>
 
-            <div className="fixed bottom-8 left-0 right-0 flex justify-center gap-8 text-[10px] uppercase tracking-widest text-slate-400 font-bold z-50">
-                <Link to="/privacy-policy" className="hover:text-blue-400 transition-all duration-300 glass px-4 py-2 rounded-full border border-white/5 hover:border-blue-500/30">Privacy</Link>
-                <Link to="/terms" className="hover:text-blue-400 transition-all duration-300 glass px-4 py-2 rounded-full border border-white/5 hover:border-blue-500/30">Terms</Link>
-                <Link to="/data-deletion" className="hover:text-blue-400 transition-all duration-300 glass px-4 py-2 rounded-full border border-white/5 hover:border-blue-500/30">Data Deletion</Link>
-            </div>
-        </main>
+        </main >
     );
 };
 

@@ -237,3 +237,6 @@ resilience4j:
         waitDurationInOpenState: 15s
         failureRateThreshold: 50
         eventConsumerBufferSize: 10
+
+turnstile:
+  secret: ${TURNSTILE_SECRET}

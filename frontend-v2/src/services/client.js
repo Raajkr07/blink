@@ -176,9 +176,9 @@ apiClient.interceptors.response.use(
                 storage.remove(STORAGE_KEYS.ACCESS_TOKEN);
                 storage.remove(STORAGE_KEYS.REFRESH_TOKEN);
                 storage.remove(STORAGE_KEYS.USER);
-                const publicRoutes = ['/privacy-policy', '/terms', '/data-deletion', '/oauth-error'];
+                const publicRoutes = ['/privacy-policy', '/terms', '/data-deletion', '/oauth-error', '/docs', '/blog'];
                 const currentPath = window.location.pathname.replace(/\/$/, '');
-                if (currentPath !== '' && !currentPath.includes('/auth') && !publicRoutes.includes(currentPath)) {
+                if (currentPath !== '' && !currentPath.includes('/auth') && !currentPath.startsWith('/blog') && !publicRoutes.includes(currentPath)) {
                     window.location.href = '/';
                 }
                 return Promise.reject(normalizeApiError(err));

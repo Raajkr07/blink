@@ -1,8 +1,8 @@
 import apiClient from './client';
 
 export const authService = {
-    requestOtp: async (identifier, intent) => {
-        const { data } = await apiClient.post('/api/v1/auth/request-otp', { identifier, intent });
+    requestOtp: async (identifier, intent, turnstileToken) => {
+        const { data } = await apiClient.post('/api/v1/auth/request-otp', { identifier, intent, turnstileToken });
         return data;
     },
 

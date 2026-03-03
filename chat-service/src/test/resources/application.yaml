@@ -81,3 +81,7 @@ app:
       encryption-salt: 5c0744940b5c369b
       default-redirect-uri: http://localhost:5173/chat
       error-redirect-uri: http://localhost:5173/auth?error=true
+
+# Turnstile configuration
+turnstile:
+  secret: test-turnstile-secret

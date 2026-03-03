@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { useMutation } from '@tanstack/react-query';
 import { motion as Motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -12,13 +13,14 @@ export function Login({ onSwitchToSignup, initialIdentifier }) {
     const [step, setStep] = useState('phone');
     const [identifier, setIdentifier] = useState(initialIdentifier || '');
     const [otp, setOtp] = useState('');
+    const [turnstileToken, setTurnstileToken] = useState('');
     const { setUser, setTokens } = useAuthStore();
     const navigate = useNavigate();
 
     const requestOtpMutation = useMutation({
         mutationFn: () => {
             const normalized = identifier.trim().includes('@') ? identifier.trim().toLowerCase() : identifier.trim();
-            return authService.requestOtp(normalized, 'login');
+            return authService.requestOtp(normalized, 'login', turnstileToken);
         },
         onSuccess: (data) => {
             toast.success(data.message || 'OTP sent successfully');
@@ -74,6 +76,7 @@ export function Login({ onSwitchToSignup, initialIdentifier }) {
         e.preventDefault();
         if (step === 'phone') {
             if (!identifier.trim()) return toast.error('Enter mobile or email');
+            if (!turnstileToken) return toast.error('Please complete the captcha');
             requestOtpMutation.mutate();
         } else {
             if (!otp.trim()) return toast.error('Enter OTP');
@@ -104,6 +107,13 @@ export function Login({ onSwitchToSignup, initialIdentifier }) {
                             disabled={requestOtpMutation.isPending}
                             placeholder="Email or Phone Number"
                         />
+                        <div className="mt-4 flex justify-center items-center" style={{ minHeight: '65px' }}>
+                            <Turnstile
+                                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                                onSuccess={(token) => setTurnstileToken(token)}
+                                options={{ theme: 'dark' }}
+                            />
+                        </div>
                         <Button
                             type="submit"
                             className="w-full mt-4"

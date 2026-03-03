@@ -11,6 +11,9 @@ const ChatPage = lazy(() => import('../pages/ChatPage'));
 const PrivacyPolicy = lazy(() => import('../pages/verification/PrivacyPolicy'));
 const TermsOfService = lazy(() => import('../pages/verification/TermsOfService'));
 const DataDeletion = lazy(() => import('../pages/verification/DataDeletion'));
+const DocsPage = lazy(() => import('../pages/verification/DocsPage'));
+const BlogPage = lazy(() => import('../pages/verification/BlogPage'));
+const BlogPostPage = lazy(() => import('../pages/verification/BlogPostPage'));
 const VerifyPage = lazy(() => import('../pages/verification/VerifyPage'));
 const OAuthFallback = lazy(() => import('../pages/OAuthFallback'));
 const RedirectToChat = lazy(() => import('../pages/RedirectToChat'));
@@ -38,6 +41,21 @@ export const publicRoutes = [
         path: '/data-deletion',
         element: DataDeletion,
         title: 'Data Deletion | Blinx AI Assistant',
+    },
+    {
+        path: '/docs',
+        element: DocsPage,
+        title: 'Documentation | Blinx AI Assistant',
+    },
+    {
+        path: '/blog',
+        element: BlogPage,
+        title: 'Blog | Blinx AI Assistant',
+    },
+    {
+        path: '/blog/:id',
+        element: BlogPostPage,
+        title: 'Blog | Blinx AI Assistant',
     },
     {
         path: '/verify',

@@ -74,6 +74,8 @@ export const LegalLayout = ({ title, lastUpdated, children }) => {
                         <Link to="/terms" className="hover:text-blue-500 transition-colors">Terms</Link>
                         <Link to="/privacy-policy" className="hover:text-blue-500 transition-colors">Privacy</Link>
                         <Link to="/data-deletion" className="hover:text-blue-500 transition-colors">Deletion</Link>
+                        <Link to="/docs" className="hover:text-blue-500 transition-colors">Docs</Link>
+                        <Link to="/blog" className="hover:text-blue-500 transition-colors">Blog</Link>
                         <a
                             href={`mailto:${env.SUPPORT_EMAIL}`}
                             onClick={handleSupportClick}
