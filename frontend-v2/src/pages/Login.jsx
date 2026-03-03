@@ -107,7 +107,7 @@ export function Login({ onSwitchToSignup, initialIdentifier }) {
                             disabled={requestOtpMutation.isPending}
                             placeholder="Email or Phone Number"
                         />
-                        <div className="mt-4 flex justify-center items-center" style={{ minHeight: '65px' }}>
+                        <div className="mt-4 flex justify-center items-center">
                             <Turnstile
                                 siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
                                 onSuccess={(token) => setTurnstileToken(token)}
