@@ -17,6 +17,7 @@ public interface CallRepository extends MongoRepository<Call, String> {
     Optional<Call> findByIdAndStatus(String id, CallStatus status);
     
     List<Call> findByCallerIdOrReceiverId(String callerId, String receiverId);
+    List<Call> findByStatus(CallStatus status);
     
     @Query("{ $and: [ { $or: [ { 'callerId': ?0 }, { 'receiverId': ?1 } ] }, { 'status': ?2 } ] }")
     List<Call> findByCallerIdOrReceiverIdAndStatus(String callerId, String receiverId, CallStatus status);

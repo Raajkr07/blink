@@ -12,6 +12,8 @@ import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import java.io.IOException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -65,6 +67,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception on {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         return error("INTERNAL_ERROR", "An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR, request.getRequestURI(), null);
+    }
+
+    @ExceptionHandler({IOException.class, AsyncRequestNotUsableException.class})
+    public void handleClientAbortException(Exception ex) {
+        // Client unexpectedly closed connection (e.g. unmounted react component, cancelled inflight request)
+        // Spring handles these at the container level gracefully, we just need to prevent the GlobalExceptionHandler from logging it as an ERROR stack trace
+        log.warn("Client disconnected during request (ClientAbort/IOException): {}", ex.getMessage());
     }
 
     private ResponseEntity<ErrorResponse> error(String code, String msg, HttpStatus status, String path, Map<String, Object> details) {

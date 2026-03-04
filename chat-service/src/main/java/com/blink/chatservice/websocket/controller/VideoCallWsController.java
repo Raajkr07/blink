@@ -24,14 +24,17 @@ public class VideoCallWsController {
         if (principal == null || signal == null || signal.callId() == null) return;
 
         String senderId = principal.getName();
-        Call call = callService.getCall(signal.callId());
-        
-        if (!isParticipant(call, senderId)) return;
+        try {
+            Call call = callService.getCall(signal.callId());
+            if (!isParticipant(call, senderId)) return;
 
-        String targetId = call.getCallerId().equals(senderId) ? call.getReceiverId() : call.getCallerId();
-        messagingTemplate.convertAndSend("/topic/video/" + targetId + "/signal", signal);
+            String targetId = call.getCallerId().equals(senderId) ? call.getReceiverId() : call.getCallerId();
+            messagingTemplate.convertAndSend("/topic/video/" + targetId + "/signal", signal);
 
-        processSignal(signal, call);
+            processSignal(signal, call);
+        } catch (IllegalArgumentException e) {
+            // Call not found or invalid, gracefully ignore signal
+        }
     }
 
     @MessageMapping("/video/call-notification")

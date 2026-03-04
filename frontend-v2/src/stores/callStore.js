@@ -4,6 +4,7 @@ import { socketService } from '../services/socketService';
 import { getWebRTCService, resetWebRTCService } from '../services/webrtc';
 import toast from 'react-hot-toast';
 import { reportErrorOnce } from '../lib/reportError';
+import { useNotificationStore } from './notificationStore';
 
 export const useCallStore = create((set, get) => ({
 
@@ -74,6 +75,15 @@ export const useCallStore = create((set, get) => ({
                 callerAvatar: notification.callerAvatar,
             },
             callStatus: 'ringing',
+        });
+
+        useNotificationStore.getState().addNotification({
+            type: 'INCOMING_CALL',
+            id: `call-${notification.callId}`,
+            title: `Incoming ${callType.toLowerCase()} call`,
+            body: `${notification.callerName || 'Someone'} is calling you.`,
+            avatar: notification.callerAvatar,
+            payload: notification
         });
 
         // Immediately tell the caller we're ringing so their UI updates
@@ -186,17 +196,19 @@ export const useCallStore = create((set, get) => ({
                     break;
 
                 case 'CALL_MISSED':
+                    useNotificationStore.getState().removeNotification(`call-${signal.callId}`);
                     toast.error('Call missed');
                     get().endCall('missed');
                     break;
 
                 case 'CALL_ENDED':
+                    useNotificationStore.getState().removeNotification(`call-${signal.callId}`);
                     if (callStatus === 'calling') {
                         toast.error('Call was declined');
                     } else if (callStatus === 'active') {
                         toast('Call ended');
                     }
-                    get().endCall('ended');
+                    get().endCall('remote-ended');
                     break;
 
                 default:
@@ -393,19 +405,23 @@ export const useCallStore = create((set, get) => ({
     // Reject incoming call
     rejectCall: async () => {
         const { incomingCall } = get();
-        if (incomingCall) {
-            try {
-                await callService.rejectCall(incomingCall.id);
-            } catch (error) {
-                reportErrorOnce('call-reject', error, 'Failed to reject call');
-            }
-        }
+        if (!incomingCall) return;
+
+        const callId = incomingCall.id;
+
+        // Immediately update state to prevent double-clicks from running this method twice
         set({
             incomingCall: null,
             callStatus: 'idle',
             pendingOffer: null,
             orphanedSignals: {},
         });
+
+        try {
+            await callService.rejectCall(callId);
+        } catch (error) {
+            reportErrorOnce('call-reject', error, 'Failed to reject call');
+        }
     },
 
     // End active call
@@ -413,31 +429,11 @@ export const useCallStore = create((set, get) => ({
         const { activeCall, incomingCall, localStream } = get();
         const currentCall = activeCall || incomingCall;
 
-        if (currentCall?.id) {
-            try {
-                if (outcome === 'ended') {
-                    await callService.endCall(currentCall.id);
-                }
-            } catch (error) {
-                reportErrorOnce('call-end', error, 'Failed to end call');
-            }
+        if (!currentCall?.id) return;
 
-            // Notify remote peer that the call has ended so their UI updates
-            try {
-                const targetUserId = currentCall.callerId === socketService.getUserId()
-                    ? currentCall.receiverId
-                    : currentCall.callerId;
-                socketService.send('/app/video/signal', {
-                    callId: currentCall.id,
-                    type: 'CALL_ENDED',
-                    data: '',
-                    targetUserId,
-                });
-            } catch {
-                // Non-critical, suppress
-            }
-        }
+        const callId = currentCall.id;
 
+        // Perform UI and media breakdown immediately to prevent double-clicks
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
         }
@@ -458,6 +454,15 @@ export const useCallStore = create((set, get) => ({
             pendingOffer: null,
             orphanedSignals: {},
         });
+
+        if (outcome === 'ended') {
+            try {
+                // This hits the backend API, which will properly cascade and send the CALL_ENDED WebRTC signal to the remote peer
+                await callService.endCall(callId);
+            } catch (error) {
+                reportErrorOnce('call-end', error, 'Failed to end call');
+            }
+        }
     },
 
     setCallActive: (callId) => {

@@ -76,6 +76,27 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    public void requestDirectChat(String me, String otherUserContact) {
+        if (otherUserContact == null || otherUserContact.isBlank()) throw new IllegalArgumentException("Contact required");
+        
+        String otherUserId = userService.resolveUserIdFromContact(otherUserContact.trim());
+        if (otherUserId == null) throw new IllegalArgumentException("User not found: " + otherUserContact);
+        if (me.equals(otherUserId)) throw new IllegalArgumentException("Cannot request chat with self");
+
+        User sender = userRepository.findById(me).orElse(null);
+        if (sender == null) return;
+
+        Map<String, Object> payload = Map.of(
+            "type", "CHAT_REQUEST",
+            "senderId", sender.getId(),
+            "senderName", sender.getUsername() != null ? sender.getUsername() : "Unknown",
+            "senderAvatar", sender.getAvatarUrl() != null ? sender.getAvatarUrl() : ""
+        );
+
+        messagingTemplate.convertAndSend("/topic/user/" + otherUserId + "/actions", payload);
+    }
+
+    @Override
     @Transactional
     public Conversation createGroupConversation(String creatorId, String title, Set<String> participantIds) {
         Conversation conv = new Conversation();
@@ -97,7 +118,7 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public List<Conversation> listGroupsVisibleToUser(String userId) {
-        return conversationRepository.findByParticipantsContainingAndType(userId, ConversationType.GROUP);
+        return conversationRepository.findByType(ConversationType.GROUP);
     }
 
     @Override
@@ -110,14 +131,84 @@ public class ChatServiceImpl implements ChatService {
         if (participants.add(userId.trim())) {
             conv.setParticipants(participants);
             conv.setUpdatedAt(LocalDateTime.now(ZoneId.of("UTC")));
-            return conversationRepository.save(conv);
+            Conversation saved = conversationRepository.save(conv);
+            saved.getParticipants().forEach(uid -> messagingTemplate.convertAndSendToUser(uid, "/queue/conversations/new", saved));
+            return saved;
         }
         return conv;
     }
 
     @Override
     @Transactional
-    @CacheEvict(value = "conversations_v2", key = "#groupId")
+    public Conversation requestJoinGroup(String groupId, String userId) {
+        Conversation conv = getGroupOrThrow(groupId);
+        if (!userRepository.existsById(userId.trim())) throw new IllegalArgumentException("User not found");
+        if (conv.getParticipants() != null && conv.getParticipants().contains(userId.trim())) {
+            throw new IllegalArgumentException("User already in group");
+        }
+
+        Set<String> joinRequests = conv.getJoinRequests() != null ? new HashSet<>(conv.getJoinRequests()) : new HashSet<>();
+        if (joinRequests.add(userId.trim())) {
+            conv.setJoinRequests(joinRequests);
+            conv.setUpdatedAt(LocalDateTime.now(ZoneId.of("UTC")));
+            Conversation saved = conversationRepository.save(conv);
+            // Optionally, notify admins that a request was made
+            if (saved.getAdmins() != null) {
+                saved.getAdmins().forEach(adminId -> messagingTemplate.convertAndSendToUser(adminId, "/queue/conversations/new", saved));
+            }
+            return saved;
+        }
+        return conv;
+    }
+
+    @Override
+    @Transactional
+    public Conversation approveJoinRequest(String groupId, String userId, String adminId) {
+        Conversation conv = getGroupOrThrow(groupId);
+        if (conv.getAdmins() == null || !conv.getAdmins().contains(adminId)) {
+            throw new IllegalArgumentException("Only admins can approve requests");
+        }
+        
+        Set<String> joinRequests = conv.getJoinRequests() != null ? new HashSet<>(conv.getJoinRequests()) : new HashSet<>();
+        if (!joinRequests.remove(userId)) throw new IllegalArgumentException("No pending request found for user");
+        conv.setJoinRequests(joinRequests);
+
+        Set<String> participants = conv.getParticipants() != null ? new HashSet<>(conv.getParticipants()) : new HashSet<>();
+        if (participants.add(userId)) {
+            conv.setParticipants(participants);
+            conv.setUpdatedAt(LocalDateTime.now(ZoneId.of("UTC")));
+            Conversation saved = conversationRepository.save(conv);
+            saved.getParticipants().forEach(uid -> messagingTemplate.convertAndSendToUser(uid, "/queue/conversations/new", saved));
+            return saved;
+        }
+        return conv;
+    }
+
+    @Override
+    @Transactional
+    public Conversation rejectJoinRequest(String groupId, String userId, String adminId) {
+        Conversation conv = getGroupOrThrow(groupId);
+        if (conv.getAdmins() == null || !conv.getAdmins().contains(adminId)) {
+            throw new IllegalArgumentException("Only admins can reject requests");
+        }
+
+        Set<String> joinRequests = conv.getJoinRequests() != null ? new HashSet<>(conv.getJoinRequests()) : new HashSet<>();
+        if (!joinRequests.remove(userId)) throw new IllegalArgumentException("No pending request found for user");
+        
+        conv.setJoinRequests(joinRequests);
+        conv.setUpdatedAt(LocalDateTime.now(ZoneId.of("UTC")));
+        Conversation saved = conversationRepository.save(conv);
+        
+        // Notify admins about the updated conversation state
+        if (saved.getAdmins() != null) {
+            saved.getAdmins().forEach(aId -> messagingTemplate.convertAndSendToUser(aId, "/queue/conversations/new", saved));
+        }
+        
+        return saved;
+    }
+
+    @Override
+    @Transactional
     public Conversation removeUserFromGroup(String groupId, String userId, String requesterId) {
         Conversation conv = getGroupOrThrow(groupId);
         if (!conv.getAdmins().contains(requesterId) && !requesterId.equals(userId)) throw new IllegalArgumentException("Unauthorized");
@@ -129,7 +220,11 @@ public class ChatServiceImpl implements ChatService {
         conv.setParticipants(participants);
         if (conv.getAdmins() != null) conv.getAdmins().remove(userId);
         conv.setUpdatedAt(LocalDateTime.now(ZoneId.of("UTC")));
-        return conversationRepository.save(conv);
+        Conversation saved = conversationRepository.save(conv);
+        // Include the removed user so they also know they are removed.
+        messagingTemplate.convertAndSendToUser(userId, "/queue/conversations/new", saved);
+        saved.getParticipants().forEach(uid -> messagingTemplate.convertAndSendToUser(uid, "/queue/conversations/new", saved));
+        return saved;
     }
 
     @Override

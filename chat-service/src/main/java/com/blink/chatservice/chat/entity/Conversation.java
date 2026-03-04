@@ -36,6 +36,7 @@ public class Conversation {
     private ConversationType type;
     private Set<String> participants = new HashSet<>();
     private Set<String> admins = new HashSet<>();
+    private Set<String> joinRequests = new HashSet<>();
     private String lastMessagePreview;
     private LocalDateTime lastMessageAt;
     private LocalDateTime createdAt = LocalDateTime.now(UTC);

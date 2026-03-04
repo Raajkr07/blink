@@ -41,8 +41,8 @@ public class GroupChatController {
 
     @PostMapping("/{groupId}/join")
     @Operation(
-            summary = "Join a group conversation",
-            description = "Adds the current user as a participant of the specified group."
+            summary = "Request to join a group conversation",
+            description = "Requests admin approval to join the specified group."
     )
     public ResponseEntity<Conversation> joinGroup(
             Authentication auth,
@@ -50,12 +50,50 @@ public class GroupChatController {
     ) {
         try {
             String userId = auth.getName();
-            Conversation conv = chatService.addUserToGroup(groupId, userId);
+            Conversation conv = chatService.requestJoinGroup(groupId, userId);
             return ResponseEntity.ok(conv);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             log.error("Error joining group", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @PostMapping("/{groupId}/approve/{userId}")
+    @Operation(summary = "Approve a join request")
+    public ResponseEntity<Conversation> approveJoinRequest(
+            Authentication auth,
+            @PathVariable String groupId,
+            @PathVariable String userId
+    ) {
+        try {
+            String adminId = auth.getName();
+            Conversation conv = chatService.approveJoinRequest(groupId, userId, adminId);
+            return ResponseEntity.ok(conv);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            log.error("Error approving join request", e);
+            return ResponseEntity.status(500).build();
+        }
+    }
+
+    @PostMapping("/{groupId}/reject/{userId}")
+    @Operation(summary = "Reject a join request")
+    public ResponseEntity<Conversation> rejectJoinRequest(
+            Authentication auth,
+            @PathVariable String groupId,
+            @PathVariable String userId
+    ) {
+        try {
+            String adminId = auth.getName();
+            Conversation conv = chatService.rejectJoinRequest(groupId, userId, adminId);
+            return ResponseEntity.ok(conv);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            log.error("Error rejecting join request", e);
             return ResponseEntity.status(500).build();
         }
     }

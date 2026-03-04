@@ -31,15 +31,13 @@ export function BrowseGroupsModal({ open, onOpenChange }) {
 
     const joinGroupMutation = useMutation({
         mutationFn: (groupId) => chatService.joinGroup(groupId),
-        onSuccess: (conversation) => {
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
             queryClient.invalidateQueries({ queryKey: queryKeys.groups });
-            openTab(conversation);
-            setActiveConversation(conversation.id);
             onOpenChange(false);
-            toast.success('Joined group');
+            toast.success('Join request sent to admin');
         },
-        onError: () => toast.error('Failed to join'),
+        onError: () => toast.error('Failed to request join'),
     });
 
     const handleClose = () => {
@@ -111,7 +109,7 @@ export function BrowseGroupsModal({ open, onOpenChange }) {
                                             onClick={() => joinGroupMutation.mutate(group.id)}
                                             disabled={joinGroupMutation.isPending}
                                         >
-                                            Join
+                                            Request
                                         </Button>
                                     )}
                                 </div>

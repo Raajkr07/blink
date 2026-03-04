@@ -12,17 +12,23 @@ export function formatRelativeTime(date) {
     const dateStr = typeof date === 'string' && !date.endsWith('Z') && !date.includes('+') ? `${date}Z` : date;
     const then = new Date(dateStr);
 
-    const diffMs = now - then;
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHour = Math.floor(diffMin / 60);
-    const diffDay = Math.floor(diffHour / 24);
+    const isToday = now.getDate() === then.getDate() &&
+        now.getMonth() === then.getMonth() &&
+        now.getFullYear() === then.getFullYear();
 
-    if (diffSec < 60) return 'Just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    if (diffHour < 24) return `${diffHour}h ago`;
-    if (diffDay === 1) return 'Yesterday';
-    if (diffDay < 7) return `${diffDay}d ago`;
+    if (isToday) {
+        return formatTime(then);
+    }
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = yesterday.getDate() === then.getDate() &&
+        yesterday.getMonth() === then.getMonth() &&
+        yesterday.getFullYear() === then.getFullYear();
+
+    if (isYesterday) {
+        return 'Yesterday';
+    }
 
     const day = String(then.getDate()).padStart(2, '0');
     const month = String(then.getMonth() + 1).padStart(2, '0');

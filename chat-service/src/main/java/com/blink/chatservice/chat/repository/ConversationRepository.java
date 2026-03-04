@@ -11,6 +11,7 @@ import java.util.Optional;
 public interface ConversationRepository extends MongoRepository<Conversation, String> {
     List<Conversation> findByParticipantsContainingOrderByUpdatedAtDesc(String userId);
     List<Conversation> findByParticipantsContainingAndType(String userId, ConversationType type);
+    List<Conversation> findByType(ConversationType type);
 
     @Query("{ 'type': ?0, 'participants': { $all: ?1, $size: 2 } }")
     Optional<Conversation> findDirectByParticipants(ConversationType type, List<String> users);

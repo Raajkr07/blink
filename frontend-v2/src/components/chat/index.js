@@ -15,3 +15,4 @@ export { ProfileModal } from './ProfileModal';
 export { CalendarPreviewModal } from './CalendarPreviewModal';
 export { BrowseGroupsModal } from './BrowseGroupsModal';
 export { OnlineUsersPanel } from './OnlineUsersPanel';
+export { ContactRequestModal } from './ContactRequestModal';

@@ -3,7 +3,7 @@ import { useDebounce } from 'use-debounce';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { userService, chatService } from '../../services';
 import { queryKeys } from '../../lib/queryClient';
-import { useChatStore } from '../../stores';
+import { useChatStore, useAuthStore } from '../../stores';
 import { Modal, ModalFooter, Button, Input, Avatar } from '../ui';
 import { cn } from '../../lib/utils';
 import toast from 'react-hot-toast';
@@ -14,15 +14,35 @@ export function NewGroupModal({ open, onOpenChange }) {
     const [selectedMembers, setSelectedMembers] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const { setActiveConversation } = useChatStore();
+    const { user: currentUser } = useAuthStore();
     const queryClient = useQueryClient();
 
     const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
 
-    const { data: searchResults, isLoading: isSearching } = useQuery({
-        queryKey: ['userSearch', debouncedSearchQuery],
-        queryFn: () => userService.searchUsers(debouncedSearchQuery),
-        enabled: debouncedSearchQuery.length > 0 && step === 'members',
+    const { data: globalConversations } = useQuery({
+        queryKey: queryKeys.conversations,
+        queryFn: chatService.listConversations,
+        enabled: step === 'members',
     });
+
+    const directPartnerIds = (globalConversations || [])
+        .filter(c => c.type === 'DIRECT' && !c.isAiAssistant)
+        .map(c => c.participants.find(id => id !== currentUser?.id) || c.participants[0])
+        .filter(Boolean);
+
+    const { data: friendsUsers, isLoading: isSearchingData } = useQuery({
+        queryKey: ['users-batch-friends', directPartnerIds],
+        queryFn: () => userService.getUsersBatch(directPartnerIds),
+        enabled: directPartnerIds.length > 0 && step === 'members',
+    });
+
+    const isSearching = isSearchingData;
+    const searchResults = (friendsUsers || [])
+        .filter(u => {
+            if (!u || !u.id || !u.username) return false;
+            if (!debouncedSearchQuery) return true;
+            return u.username.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
+        });
 
     const createGroupMutation = useMutation({
         mutationFn: (data) => chatService.createGroup(data.title, data.participantIds),

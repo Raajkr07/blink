@@ -3,7 +3,7 @@ import { useMemo, useEffect, useState, useRef, useCallback } from 'react';
 import { chatService, userService, aiService } from '../../services';
 import { socketService } from '../../services/socketService';
 import { queryKeys } from '../../lib/queryClient';
-import { useChatStore, useTabsStore, useAuthStore, useUIStore } from '../../stores';
+import { useChatStore, useTabsStore, useAuthStore, useUIStore, useNotificationStore } from '../../stores';
 import { Avatar, Skeleton, SkeletonAvatar, SkeletonConversation, EmptyState, NoConversationsIcon, NoSearchResultsIcon } from '../ui';
 import { cn, formatRelativeTime, truncate } from '../../lib/utils';
 
@@ -108,6 +108,27 @@ export function ConversationList() {
                 const isFromSelf = rawMessage.senderId === currentUser.id || rawMessage.senderId === 'me';
                 if (!isFromSelf && activeConvRef.current !== conv.id) {
                     incrementUnread(conv.id);
+
+                    // Grab sender name/avatar safely
+                    let senderName = rawMessage.senderName || 'Someone';
+                    let senderAvatar = rawMessage.senderAvatar;
+
+                    if (!rawMessage.senderName && conv.participants) {
+                        const senderP = conv.participants.find(p => (p.id || p) === rawMessage.senderId);
+                        if (senderP && typeof senderP === 'object') {
+                            senderName = senderP.username || senderP.name || senderName;
+                            senderAvatar = senderP.avatarUrl || senderAvatar;
+                        }
+                    }
+
+                    useNotificationStore.getState().addNotification({
+                        type: 'NEW_MESSAGE',
+                        id: `msg-${conv.id}`,
+                        title: conv.title || senderName,
+                        body: rawMessage.body || 'New message',
+                        avatar: conv.avatarUrl || senderAvatar,
+                        payload: { conversationId: conv.id }
+                    });
                 }
             });
 

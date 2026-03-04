@@ -11,7 +11,7 @@ const HEADER_HEIGHT = 25;
 
 export function OnlineUsersPanel() {
     const { user: currentUser } = useAuthStore();
-    const { setActiveConversation } = useChatStore();
+    const { setActiveConversation, unreadCounts } = useChatStore();
     const { openTab } = useTabsStore();
     const {
         onlinePanelHeight,
@@ -71,6 +71,7 @@ export function OnlineUsersPanel() {
         queryKey: queryKeys.onlineUsers,
         queryFn: userService.listOnlineUsers,
         staleTime: 10000,
+        refetchInterval: 2000, // Real-time reflection check every 2s
     });
 
     // Fetch profiles for online users
@@ -83,18 +84,47 @@ export function OnlineUsersPanel() {
         staleTime: 1000 * 60 * 2,
     });
 
+    const { data: globalConversations } = useQuery({
+        queryKey: queryKeys.conversations,
+        queryFn: chatService.listConversations,
+    });
+
+    const getUnreadCount = (userId) => {
+        if (!globalConversations) return 0;
+        const conv = globalConversations.find(c => {
+            if (c.type !== 'DIRECT' || c.isAiAssistant) return false;
+            const hasUser = c.participants.some(p => (typeof p === 'string' ? p : p.id) === userId);
+            const hasMe = c.participants.some(p => (typeof p === 'string' ? p : p.id) === currentUser?.id);
+            return hasUser && hasMe;
+        });
+        if (!conv) return 0;
+        return unreadCounts[conv.id] || 0;
+    };
+
     const handleStartChat = async (userId) => {
         try {
-            const conversation = await chatService.createDirectChat(userId);
-            openTab(conversation);
-            setActiveConversation(conversation.id);
-        } catch (err) {
-            if (err?.status === 409 && err?.data?.id) {
-                openTab(err.data);
-                setActiveConversation(err.data.id);
-                return;
+            // Check if already friends
+            let existingConv = null;
+            if (globalConversations) {
+                existingConv = globalConversations.find(c => {
+                    if (c.type !== 'DIRECT' || c.isAiAssistant) return false;
+                    const hasUser = c.participants.some(p => (typeof p === 'string' ? p : p.id) === userId);
+                    const hasMe = c.participants.some(p => (typeof p === 'string' ? p : p.id) === currentUser?.id);
+                    return hasUser && hasMe;
+                });
             }
-            toast.error('Failed to start chat');
+
+            if (existingConv) {
+                // If friends, open directly, persisting normally
+                openTab(existingConv);
+                setActiveConversation(existingConv.id);
+            } else {
+                // If new, send a real-time HTTP request to ping them for acceptance
+                await chatService.requestDirectChat(userId);
+                toast.success('Chat request sent! Waiting for them to accept.');
+            }
+        } catch {
+            toast.error('Failed to request chat');
         }
     };
 
@@ -197,7 +227,14 @@ export function OnlineUsersPanel() {
                                             <span className="text-sm font-medium text-[var(--color-foreground)] truncate">
                                                 {user.username || user.name || 'User'}
                                             </span>
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                {getUnreadCount(user.id) > 0 && (
+                                                    <span className="min-w-[16px] h-[16px] flex items-center justify-center rounded-full bg-blue-500 text-white text-[9px] font-bold px-1 leading-none shadow-sm">
+                                                        {getUnreadCount(user.id) > 99 ? '99+' : getUnreadCount(user.id)}
+                                                    </span>
+                                                )}
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                                            </div>
                                         </div>
                                         <span className="text-[10px] text-[var(--color-gray-500)] leading-none mt-0.5">
                                             Active now

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.dao.DataAccessException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,17 +29,29 @@ public class CallController {
 
     @PostMapping("/{callId}/accept")
     public ResponseEntity<CallResponse> acceptCall(Authentication auth, @PathVariable String callId) {
-        return ResponseEntity.ok(callService.acceptCall(callId, auth.getName()));
+        try {
+            return ResponseEntity.ok(callService.acceptCall(callId, auth.getName()));
+        } catch (DataAccessException e) {
+            return ResponseEntity.ok(callService.getCallDetails(callId, auth.getName()));
+        }
     }
 
     @PostMapping("/{callId}/reject")
     public ResponseEntity<CallResponse> rejectCall(Authentication auth, @PathVariable String callId) {
-        return ResponseEntity.ok(callService.rejectCall(callId, auth.getName()));
+        try {
+            return ResponseEntity.ok(callService.rejectCall(callId, auth.getName()));
+        } catch (DataAccessException e) {
+            return ResponseEntity.ok(callService.getCallDetails(callId, auth.getName()));
+        }
     }
 
     @PostMapping("/{callId}/end")
     public ResponseEntity<CallResponse> endCall(Authentication auth, @PathVariable String callId) {
-        return ResponseEntity.ok(callService.endCall(callId, auth.getName()));
+        try {
+            return ResponseEntity.ok(callService.endCall(callId, auth.getName()));
+        } catch (DataAccessException e) {
+            return ResponseEntity.ok(callService.getCallDetails(callId, auth.getName()));
+        }
     }
 
     @GetMapping("/active")

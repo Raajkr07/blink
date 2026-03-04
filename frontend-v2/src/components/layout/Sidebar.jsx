@@ -146,7 +146,7 @@ export function SidebarHeader({ children }) {
 
     return (
         <div className={cn(
-            "h-14 flex items-center justify-between border-b border-[var(--color-border)] flex-shrink-0 transition-all duration-1000 overflow-hidden",
+            "h-14 flex items-center justify-between border-b border-[var(--color-border)] flex-shrink-0 transition-all duration-1000 relative z-50",
             isSidebarCollapsed ? "px-2 justify-center" : "px-3"
         )}>
             {children}

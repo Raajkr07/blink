@@ -33,6 +33,11 @@ export const chatService = {
         return data;
     },
 
+    requestDirectChat: async (contact) => {
+        const { data } = await apiClient.post('/api/v1/chat/direct/request', { otherUserContact: contact });
+        return data;
+    },
+
     createGroup: async (title, participantIds) => {
         const { data } = await apiClient.post('/api/v1/chat/group', { title, participantIds });
         return data;
@@ -60,6 +65,16 @@ export const chatService = {
 
     joinGroup: async (id) => {
         const { data } = await apiClient.post(`/api/v1/chat/groups/${id}/join`, {});
+        return data;
+    },
+
+    approveJoin: async (id, userId) => {
+        const { data } = await apiClient.post(`/api/v1/chat/groups/${id}/approve/${userId}`, {});
+        return data;
+    },
+
+    rejectJoin: async (id, userId) => {
+        const { data } = await apiClient.post(`/api/v1/chat/groups/${id}/reject/${userId}`, {});
         return data;
     },
 

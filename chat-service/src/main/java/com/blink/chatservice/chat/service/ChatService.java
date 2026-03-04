@@ -9,10 +9,14 @@ import java.util.Set;
 public interface ChatService {
 
     Conversation createDirectConversation(String me, String otherUserContact);
+    void requestDirectChat(String me, String otherUserContact);
     Conversation createGroupConversation(String creatorId, String title, Set<String> participantIds);
     List<Conversation> listConversationsForUser(String userId);
     List<Conversation> listGroupsVisibleToUser(String userId);
     Conversation addUserToGroup(String groupId, String userId);
+    Conversation requestJoinGroup(String groupId, String userId);
+    Conversation approveJoinRequest(String groupId, String userId, String adminId);
+    Conversation rejectJoinRequest(String groupId, String userId, String adminId);
     Conversation removeUserFromGroup(String groupId, String userId, String requesterId);
     Conversation updateGroup(String groupId, String requesterId, String title, String avatarUrl);
     Conversation getConversation(String conversationId);

@@ -60,6 +60,15 @@ export function ProfileModal({ isOpen, onClose, conversationId, type = 'user' })
         enabled: isGroup && !!conversation?.participants && isOpen,
     });
 
+    const { data: groupRequests } = useQuery({
+        queryKey: ['group-requests', conversationId],
+        queryFn: async () => {
+            if (!conversation?.joinRequests || conversation.joinRequests.length === 0) return [];
+            return await userService.getUsersBatch([...conversation.joinRequests]);
+        },
+        enabled: isGroup && isAdmin && !!conversation?.joinRequests && conversation.joinRequests.length > 0 && isOpen,
+    });
+
     // Fetch AI capabilities when viewing AI profile
     const { data: aiCapabilities, isLoading: isLoadingCapabilities } = useQuery({
         queryKey: ['aiCapabilities'],
@@ -105,6 +114,27 @@ export function ProfileModal({ isOpen, onClose, conversationId, type = 'user' })
             await queryClient.refetchQueries({ queryKey: ['group-participants', conversationId] });
             queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
             toast.success('Member added');
+        },
+    });
+
+    const approveJoinMutation = useMutation({
+        mutationFn: (userId) => chatService.approveJoin(conversationId, userId),
+        onSuccess: async () => {
+            await queryClient.refetchQueries({ queryKey: queryKeys.conversation(conversationId) });
+            await queryClient.refetchQueries({ queryKey: ['group-participants', conversationId] });
+            await queryClient.refetchQueries({ queryKey: ['group-requests', conversationId] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
+            toast.success('Member approved');
+        },
+    });
+
+    const rejectJoinMutation = useMutation({
+        mutationFn: (userId) => chatService.rejectJoin(conversationId, userId),
+        onSuccess: async () => {
+            await queryClient.refetchQueries({ queryKey: queryKeys.conversation(conversationId) });
+            await queryClient.refetchQueries({ queryKey: ['group-requests', conversationId] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
+            toast.success('Request rejected');
         },
     });
 
@@ -286,6 +316,13 @@ export function ProfileModal({ isOpen, onClose, conversationId, type = 'user' })
                                 </div>
                             )}
 
+                            {!isGroup && !isAI && displayData?.email && (
+                                <div className="rounded-2xl bg-white/3 border border-white/5 p-4">
+                                    <h3 className="text-[10px] uppercase font-semibold tracking-wider text-gray-500 mb-2">Email</h3>
+                                    <p className="text-sm text-gray-300 leading-relaxed">{displayData.email}</p>
+                                </div>
+                            )}
+
                             {isGroup && groupParticipants && (
                                 <div className="rounded-2xl bg-white/3 border border-white/5 p-4 space-y-3">
                                     <div className="flex items-center justify-between">
@@ -320,6 +357,44 @@ export function ProfileModal({ isOpen, onClose, conversationId, type = 'user' })
                                                             ×
                                                         </button>
                                                     )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {isGroup && isAdmin && groupRequests && groupRequests.length > 0 && (
+                                <div className="rounded-2xl bg-white/3 border border-white/5 p-4 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-[10px] uppercase font-semibold tracking-wider text-gray-500">Join Requests ({groupRequests.length})</h3>
+                                    </div>
+                                    <div className="space-y-1 max-h-48 overflow-y-auto custom-scrollbar">
+                                        {groupRequests.map((p) => (
+                                            <div key={p.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-white/3 transition-colors">
+                                                <div className="flex items-center gap-2.5">
+                                                    <Avatar src={p.avatarUrl} name={p.username} size="sm" />
+                                                    <span className="text-xs font-medium text-foreground">{p.username}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-[10px] font-medium h-6 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 border-none"
+                                                        onClick={() => rejectJoinMutation.mutate(p.id)}
+                                                        disabled={rejectJoinMutation.isPending || approveJoinMutation.isPending}
+                                                    >
+                                                        Reject
+                                                    </Button>
+                                                    <Button
+                                                        variant="default"
+                                                        size="sm"
+                                                        className="text-[10px] font-medium h-6 px-2 bg-blue-500 hover:bg-blue-600 border-none"
+                                                        onClick={() => approveJoinMutation.mutate(p.id)}
+                                                        disabled={approveJoinMutation.isPending || rejectJoinMutation.isPending}
+                                                    >
+                                                        Approve
+                                                    </Button>
                                                 </div>
                                             </div>
                                         ))}

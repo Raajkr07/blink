@@ -85,9 +85,15 @@ public class CallServiceImpl implements CallService {
         Call call = getCallOrThrow(callId);
         if (!call.getCallerId().equals(userId) && !call.getReceiverId().equals(userId)) throw new IllegalArgumentException("Not authorized");
 
-        call.setStatus(call.getStatus() == Call.CallStatus.ANSWERED ? Call.CallStatus.ENDED : Call.CallStatus.MISSED);
-        call.setEndedAt(LocalDateTime.now(ZoneId.of("UTC")));
-        callRepository.save(call);
+        if (call.getStatus() == Call.CallStatus.ANSWERED) {
+            call.setStatus(Call.CallStatus.ENDED);
+            call.setEndedAt(LocalDateTime.now(ZoneId.of("UTC")));
+            callRepository.save(call);
+        } else if (call.getStatus() == Call.CallStatus.RINGING || call.getStatus() == Call.CallStatus.INITIATED) {
+            call.setStatus(Call.CallStatus.MISSED);
+            call.setEndedAt(LocalDateTime.now(ZoneId.of("UTC")));
+            callRepository.save(call);
+        }
 
         String other = call.getCallerId().equals(userId) ? call.getReceiverId() : call.getCallerId();
         sendSignal(other, new WebRtcSignal(callId, WebRtcSignal.SignalType.CALL_ENDED, "Ended", userId));

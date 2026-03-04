@@ -1,9 +1,11 @@
 import { useState, lazy, Suspense, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { useAuthStore, useChatStore, useTabsStore, useUIStore } from '../stores';
+import { queryKeys } from '../lib/queryClient';
+import { useAuthStore, useChatStore, useTabsStore, useUIStore, useNotificationStore } from '../stores';
 import { socketService } from '../services/socketService';
 import { cn } from '../lib/utils';
-import { Avatar, Button, SimpleDropdown, SimpleDropdownItem } from '../components/ui';
+import { Avatar, Button, SimpleDropdown, SimpleDropdownItem, NotificationBell } from '../components/ui';
 import {
     AppShell,
     Sidebar,
@@ -26,6 +28,7 @@ import {
     CalendarPreviewModal,
     AIAssistantButton,
     OnlineUsersPanel,
+    ContactRequestModal,
 } from '../components/chat';
 import { SettingsPanel } from '../components/chat/SettingsPanel';
 import { CallLogs } from '../components/calls';
@@ -39,14 +42,18 @@ const ChatPage = () => {
     const { activeConversationId } = useChatStore();
     const { tabs, getActiveTab } = useTabsStore();
     const { isSidebarCollapsed, activeView, setActiveView, openModal, activeModal, modalData, closeModal } = useUIStore();
+    const addNotification = useNotificationStore(state => state.addNotification);
 
     const [showNewChatModal, setShowNewChatModal] = useState(false);
     const [showNewGroupModal, setShowNewGroupModal] = useState(false);
     const [showBrowseGroupsModal, setShowBrowseGroupsModal] = useState(false);
 
+    const queryClient = useQueryClient();
+
     useEffect(() => {
         let isCancelled = false;
         let sub = null;
+        let subNewConv = null;
 
         if (!user?.id) return;
 
@@ -59,9 +66,30 @@ const ChatPage = () => {
 
             if (isCancelled) return;
 
+            subNewConv = socketService.subscribe(`/user/queue/conversations/new`, (message) => {
+                const conv = message.payload || message;
+                queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
+                if (conv?.id) {
+                    queryClient.invalidateQueries({ queryKey: queryKeys.conversation(conv.id) });
+                    queryClient.invalidateQueries({ queryKey: ['group-participants', conv.id] });
+                    queryClient.invalidateQueries({ queryKey: ['group-requests', conv.id] });
+                }
+            });
+
             sub = socketService.subscribe(`/topic/user/${user.id}/actions`, (message) => {
                 const payload = message.payload || message;
-                if (message.type === 'SAVE_FILE_REQUEST' || (message.fileName && message.content)) {
+                if (message.type === 'CHAT_REQUEST') {
+                    // Try to open modal directly if no conversations else add notification
+                    addNotification({
+                        type: 'CHAT_REQUEST',
+                        title: `New chat request from ${payload.senderName || 'Someone'}`,
+                        body: 'Click here to review and accept.',
+                        avatar: payload.senderAvatar,
+                        payload
+                    });
+                    // Still open modal so it pops up instantly if user is actively using the app
+                    openModal('contactRequest', payload);
+                } else if (message.type === 'SAVE_FILE_REQUEST' || (message.fileName && message.content)) {
                     openModal('filePermission', payload);
                 } else if (message.type === 'SEND_EMAIL_REQUEST') {
                     if (payload.error) {
@@ -102,8 +130,11 @@ const ChatPage = () => {
             if (sub) {
                 sub.unsubscribe();
             }
+            if (subNewConv) {
+                subNewConv.unsubscribe();
+            }
         };
-    }, [user?.id, openModal]);
+    }, [user?.id, openModal, addNotification, queryClient]);
 
     const activeTab = getActiveTab();
     const displayConversationId = activeTab?.conversationId || activeConversationId;
@@ -137,15 +168,18 @@ const ChatPage = () => {
                             </div>
 
                             <div className={cn(
-                                "transition-all duration-1000 flex-shrink-0 origin-right overflow-hidden flex items-center",
-                                isSidebarCollapsed ? "w-0 opacity-0 pointer-events-none" : "w-10 opacity-100 ml-1"
+                                "transition-all duration-1000 flex-shrink-0 origin-right overflow-visible flex items-center gap-1",
+                                isSidebarCollapsed ? "w-0 opacity-0 pointer-events-none" : "w-auto opacity-100 ml-1"
                             )}>
-                                <div className="w-10 flex-shrink-0">
+                                <div className="flex-shrink-0">
+                                    <NotificationBell />
+                                </div>
+                                <div className="flex-shrink-0">
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         onClick={toggleCallsView}
-                                        className={cn(activeView === 'calls' && "bg-blue-500/10 text-blue-500", "w-full")}
+                                        className={cn(activeView === 'calls' && "bg-blue-500/10 text-blue-500", "w-10")}
                                     >
                                         {activeView === 'calls' ? <BackIcon /> : <PhoneIcon />}
                                     </Button>
@@ -184,7 +218,7 @@ const ChatPage = () => {
                                     New Group
                                 </SimpleDropdownItem>
                                 <SimpleDropdownItem onClick={() => setShowBrowseGroupsModal(true)} icon={<BrowseIcon />}>
-                                    Browse Groups
+                                    Join Group
                                 </SimpleDropdownItem>
                             </SimpleDropdown>
                             <AIAssistantButton compact={isSidebarCollapsed} />
@@ -262,7 +296,7 @@ const ChatPage = () => {
                 <NewGroupModal open={showNewGroupModal} onOpenChange={setShowNewGroupModal} />
                 <BrowseGroupsModal open={showBrowseGroupsModal} onOpenChange={setShowBrowseGroupsModal} />
             </Suspense>
-
+            {/* Global Modals */}
             <FilePermissionModal
                 isOpen={activeModal === 'filePermission'}
                 fileInfo={modalData}
@@ -270,18 +304,22 @@ const ChatPage = () => {
                 onDeny={closeModal}
                 onClose={closeModal}
             />
-
             <EmailPreviewModal
                 isOpen={activeModal === 'emailPreview'}
                 emailInfo={modalData}
                 onClose={closeModal}
             />
-
             <CalendarPreviewModal
                 isOpen={activeModal === 'calendarPreview'}
                 eventInfo={modalData}
                 onClose={closeModal}
             />
+            <ContactRequestModal
+                open={activeModal === 'contactRequest'}
+                onOpenChange={(open) => !open && closeModal()}
+                requestData={modalData}
+            />
+
         </>
     );
 };

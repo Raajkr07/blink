@@ -16,13 +16,9 @@ export {
     NoConversationsIcon,
     NoSearchResultsIcon,
 } from './EmptyState';
-export {
-    Dropdown,
-    DropdownItem,
-    DropdownSeparator,
-    DropdownLabel,
-} from './Dropdown';
+export { Dropdown, DropdownItem, DropdownSeparator, DropdownLabel } from './Dropdown';
 export { SimpleDropdown, SimpleDropdownItem } from './SimpleDropdown';
+export { NotificationBell } from './NotificationBell';
 export { ConfirmDialog } from './ConfirmDialog';
 export { AILogo } from './AILogo';
 export { GoogleButton } from './GoogleButton';

@@ -48,6 +48,15 @@ public class ChatController {
         return ResponseEntity.ok(chatService.createDirectConversation(auth.getName(), request.otherUserContact().trim()));
     }
 
+    @PostMapping("/direct/request")
+    public ResponseEntity<Void> requestDirect(Authentication auth, @RequestBody DirectChatRequest request) {
+        if (request == null || request.otherUserContact() == null || request.otherUserContact().isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        chatService.requestDirectChat(auth.getName(), request.otherUserContact().trim());
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/group")
     public ResponseEntity<Conversation> createGroup(Authentication auth, @Valid @RequestBody CreateGroupRequest request) {
         return ResponseEntity.ok(chatService.createGroupConversation(auth.getName(), request.getTitle().trim(), new HashSet<>(request.getParticipantIds())));
