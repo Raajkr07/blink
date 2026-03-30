@@ -4,6 +4,7 @@ import { chatService } from '../../services';
 import { useChatStore } from '../../stores';
 import toast from 'react-hot-toast';
 import { cn } from '../../lib/utils';
+import DOMPurify from 'dompurify';
 
 export function EmailPreviewModal({ isOpen, onClose, emailInfo }) {
     const { activeConversationId } = useChatStore();
@@ -137,7 +138,11 @@ export function EmailPreviewModal({ isOpen, onClose, emailInfo }) {
                                     <div style={{ padding: '0 32px 32px 32px', lineHeight: 1.7, fontSize: 14, color: '#d4d4d4' }}>
                                         <div
                                             style={{ lineHeight: 1.7, color: '#d4d4d4' }}
-                                            dangerouslySetInnerHTML={{ __html: formattedBody || '<span style="color:#525252">No content</span>' }}
+                                            dangerouslySetInnerHTML={{
+                                                __html: DOMPurify.sanitize(formattedBody || '<span style="color:#525252">No content</span>', {
+                                                    USE_PROFILES: { html: true }
+                                                })
+                                            }}
                                         />
                                     </div>
                                     {/* Footer */}
